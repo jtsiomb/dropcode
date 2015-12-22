@@ -22,7 +22,8 @@ license.
 ## Contents
 
  - sdr.h/sdr.c: low-level OpenGL shader program helpers
- - opengl.h/opengl.c: OpenGL includes for different platrforms, plus a few useful macros and functions.
+ - opengl.h: OpenGL includes for different platrforms
+ - mesh/: Elaborate mesh class, procedural mesh generators, and bounding volume geometries.
  - ilist.h: intrusive linked list (C++ template class)
 
 ## Contact

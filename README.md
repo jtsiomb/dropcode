@@ -25,6 +25,7 @@ license.
  - opengl.h: OpenGL includes for different platrforms
  - mesh/: elaborate mesh class, procedural mesh generators, and bounding volume geometries.
  - sanegl.h/sanegl.c: immediate mode and matrix stack calls for OpenGL ES2
+ - curve.h/curve.cc: hermite/bspline curve class
  - timer.h/timer.c: cross-platform high-resolution timing functions
  - ilist.h: intrusive linked list (C++ template class)
 

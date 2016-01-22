@@ -27,12 +27,16 @@ license.
  - sanegl.h/sanegl.c: immediate mode and matrix stack calls for OpenGL ES2
  - curve.h/curve.cc: hermite/bspline curve class
  - timer.h/timer.c: cross-platform high-resolution timing functions
+ - threadpool.h/threadpool.cc: C++ 11 worker thread pool
  - ilist.h: intrusive linked list (C++ template class)
+ - logger.h/logger.c: message logging of various types and multiple log targets
 
 ## Dependencies
 
 Anything which includes "vmath/vmath.h", depends on my math library:
 https://github.com/jtsiomb/libvmath
+Anything which includes "gmath/gmath.h", depends on my new math library:
+https://github.com/jtsiomb/gph-math
 
 ## Contact
 

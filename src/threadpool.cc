@@ -134,9 +134,7 @@ long ThreadPool::wait(long timeout)
 void ThreadPool::thread_func()
 {
 	std::unique_lock<std::mutex> lock(workq_mutex);
-	for(;;) {
-		if(quit) break;
-
+	while(!quit) {
 		workq_condvar.wait(lock);
 
 		while(!quit && !workq.empty()) {

@@ -27,6 +27,7 @@ license.
  - sanegl.h/sanegl.c: immediate mode and matrix stack calls for OpenGL ES2
  - curve.h/curve.cc: hermite/bspline curve class
  - timer.h/timer.c: cross-platform high-resolution timing functions
+ - tpool.h/tpool.c: worker thread pool based on POSIX threads
  - threadpool.h/threadpool.cc: C++ 11 worker thread pool
  - ilist.h: intrusive linked list (C++ template class)
  - logger.h/logger.c: message logging of various types and multiple log targets

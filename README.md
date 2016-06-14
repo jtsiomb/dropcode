@@ -37,6 +37,7 @@ license.
 
 Anything which includes "vmath/vmath.h", depends on my math library:
 https://github.com/jtsiomb/libvmath
+
 Anything which includes "gmath/gmath.h", depends on my new math library:
 https://github.com/jtsiomb/gph-math
 

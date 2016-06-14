@@ -999,10 +999,21 @@ void Mesh::texcoord_gen_cylinder()
 }
 
 
-void Mesh::dump(FILE *fp) const
+bool Mesh::dump(const char *fname) const
+{
+	FILE *fp = fopen(fname, "wb");
+	if(fp) {
+		bool res = dump(fp);
+		fclose(fp);
+		return res;
+	}
+	return false;
+}
+
+bool Mesh::dump(FILE *fp) const
 {
 	if(!has_attrib(MESH_ATTR_VERTEX)) {
-		return;
+		return false;
 	}
 
 	fprintf(fp, "VERTEX ATTRIBUTES\n");
@@ -1034,6 +1045,72 @@ void Mesh::dump(FILE *fp) const
 			idx += 3;
 		}
 	}
+	return true;
+}
+
+bool Mesh::dump_obj(const char *fname) const
+{
+	FILE *fp = fopen(fname, "wb");
+	if(fp) {
+		bool res = dump_obj(fp);
+		fclose(fp);
+		return res;
+	}
+	return false;
+}
+
+bool Mesh::dump_obj(FILE *fp) const
+{
+	if(!has_attrib(MESH_ATTR_VERTEX)) {
+		return false;
+	}
+
+	for(int i=0; i<(int)nverts; i++) {
+		Vector4 v = get_attrib(MESH_ATTR_VERTEX, i);
+		fprintf(fp, "v %g %g %g\n", v.x, v.y, v.z);
+	}
+
+	if(has_attrib(MESH_ATTR_NORMAL)) {
+		for(int i=0; i<(int)nverts; i++) {
+			Vector4 v = get_attrib(MESH_ATTR_NORMAL, i);
+			fprintf(fp, "vn %g %g %g\n", v.x, v.y, v.z);
+		}
+	}
+
+	if(has_attrib(MESH_ATTR_TEXCOORD)) {
+		for(int i=0; i<(int)nverts; i++) {
+			Vector4 v = get_attrib(MESH_ATTR_TEXCOORD, i);
+			fprintf(fp, "vt %g %g\n", v.x, v.y);
+		}
+	}
+
+	if(is_indexed()) {
+		const unsigned int *idxptr = get_index_data();
+		int numidx = get_index_count();
+		int numtri = numidx / 3;
+		assert(numidx % 3 == 0);
+
+		for(int i=0; i<numtri; i++) {
+			fputc('f', fp);
+			for(int j=0; j<3; j++) {
+				unsigned int idx = *idxptr++ + 1;
+				fprintf(fp, " %u/%u/%u", idx, idx, idx);
+			}
+			fputc('\n', fp);
+		}
+	} else {
+		int numtri = nverts / 3;
+		unsigned int idx = 1;
+		for(int i=0; i<numtri; i++) {
+			fputc('f', fp);
+			for(int j=0; j<3; j++) {
+				fprintf(fp, " %u/%u/%u", idx, idx, idx);
+				++idx;
+			}
+			fputc('\n', fp);
+		}
+	}
+	return true;
 }
 
 // ------ private member functions ------

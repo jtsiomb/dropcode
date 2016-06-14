@@ -234,7 +234,10 @@ public:
 	void texcoord_gen_box();
 	void texcoord_gen_cylinder();
 
-	void dump(FILE *fp) const;
+	bool dump(const char *fname) const;
+	bool dump(FILE *fp) const;
+	bool dump_obj(const char *fname) const;
+	bool dump_obj(FILE *fp) const;
 };
 
 #endif	// MESH_H_

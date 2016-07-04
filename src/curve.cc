@@ -10,10 +10,8 @@ Curve::Curve(CurveType type)
 }
 
 Curve::Curve(const Vector4 *cp, int numcp, CurveType type)
+	: Curve(type)
 {
-	this->type = type;
-	bbvalid = true;
-
 	this->cp.resize(numcp);
 	for(int i=0; i<numcp; i++) {
 		this->cp[i] = cp[i];
@@ -21,10 +19,8 @@ Curve::Curve(const Vector4 *cp, int numcp, CurveType type)
 }
 
 Curve::Curve(const Vector3 *cp, int numcp, CurveType type)
+	: Curve(type)
 {
-	this->type = type;
-	bbvalid = true;
-
 	this->cp.resize(numcp);
 	for(int i=0; i<numcp; i++) {
 		this->cp[i] = Vector4(cp[i].x, cp[i].y, cp[i].z, 1.0f);
@@ -32,10 +28,8 @@ Curve::Curve(const Vector3 *cp, int numcp, CurveType type)
 }
 
 Curve::Curve(const Vector2 *cp, int numcp, CurveType type)
+	: Curve(type)
 {
-	this->type = type;
-	bbvalid = true;
-
 	this->cp.resize(numcp);
 	for(int i=0; i<numcp; i++) {
 		this->cp[i] = Vector4(cp[i].x, cp[i].y, 0.0f, 1.0f);
@@ -74,7 +68,7 @@ void Curve::insert_point(const Vector4 &p)
 	if(t < 0 || t >= 1.0) {
 		add_point(p);
 	} else {
-		int after = (int)(t * size());
+		int after = (int)(t * (size() - 1));
 		cp.insert(cp.begin() + after + 1, p);
 	}
 	inval_bounds();

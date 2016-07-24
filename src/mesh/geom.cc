@@ -13,7 +13,7 @@ Sphere::Sphere()
 	radius = 1.0;
 }
 
-Sphere::Sphere(const Vector3 &cent, float radius)
+Sphere::Sphere(const Vec3 &cent, float radius)
 	: center(cent)
 {
 	this->radius = radius;
@@ -29,7 +29,7 @@ void Sphere::set_union(const GeomObject *obj1, const GeomObject *obj2)
 		return;
 	}
 
-	float dist = (sph1->center - sph2->center).length();
+	float dist = length(sph1->center - sph2->center);
 	float surf_dist = dist - (sph1->radius + sph2->radius);
 	float d1 = sph1->radius + surf_dist / 2.0;
 	float d2 = sph2->radius + surf_dist / 2.0;
@@ -49,12 +49,12 @@ void Sphere::set_intersection(const GeomObject *obj1, const GeomObject *obj2)
 
 bool Sphere::intersect(const Ray &ray, HitPoint *hit) const
 {
-	float a = dot_product(ray.dir, ray.dir);
+	float a = dot(ray.dir, ray.dir);
 	float b = 2.0 * ray.dir.x * (ray.origin.x - center.x) +
 		2.0 * ray.dir.y * (ray.origin.y - center.y) +
 		2.0 * ray.dir.z * (ray.origin.z - center.z);
-	float c = dot_product(ray.origin, ray.origin) + dot_product(center, center) -
-		2.0 * dot_product(ray.origin, center) - radius * radius;
+	float c = dot(ray.origin, ray.origin) + dot(center, center) -
+		2.0 * dot(ray.origin, center) - radius * radius;
 
 	float discr = b * b - 4.0 * a * c;
 	if(discr < 1e-4) {
@@ -90,7 +90,7 @@ AABox::AABox()
 {
 }
 
-AABox::AABox(const Vector3 &vmin, const Vector3 &vmax)
+AABox::AABox(const Vec3 &vmin, const Vec3 &vmax)
 	: min(vmin), max(vmax)
 {
 }
@@ -136,8 +136,8 @@ void AABox::set_intersection(const GeomObject *obj1, const GeomObject *obj2)
 
 bool AABox::intersect(const Ray &ray, HitPoint *hit) const
 {
-	Vector3 param[2] = {min, max};
-	Vector3 inv_dir(1.0 / ray.dir.x, 1.0 / ray.dir.y, 1.0 / ray.dir.z);
+	Vec3 param[2] = {min, max};
+	Vec3 inv_dir(1.0 / ray.dir.x, 1.0 / ray.dir.y, 1.0 / ray.dir.z);
 	int sign[3] = {inv_dir.x < 0, inv_dir.y < 0, inv_dir.z < 0};
 
 	float tmin = (param[sign[0]].x - ray.origin.x) * inv_dir.x;
@@ -177,11 +177,11 @@ bool AABox::intersect(const Ray &ray, HitPoint *hit) const
 			hit->pos = ray.origin + ray.dir * t;
 
 			float min_dist = FLT_MAX;
-			Vector3 offs = min + (max - min) / 2.0;
-			Vector3 local_hit = hit->pos - offs;
+			Vec3 offs = min + (max - min) / 2.0;
+			Vec3 local_hit = hit->pos - offs;
 
-			static const Vector3 axis[] = {
-				Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1)
+			static const Vec3 axis[] = {
+				Vec3(1, 0, 0), Vec3(0, 1, 0), Vec3(0, 0, 1)
 			};
 			//int tcidx[][2] = {{2, 1}, {0, 2}, {0, 1}};
 
@@ -190,7 +190,7 @@ bool AABox::intersect(const Ray &ray, HitPoint *hit) const
 				if(dist < min_dist) {
 					min_dist = dist;
 					hit->normal = axis[i] * (local_hit[i] < 0.0 ? 1.0 : -1.0);
-					//hit->texcoord = Vector2(hit->pos[tcidx[i][0]], hit->pos[tcidx[i][1]]);
+					//hit->texcoord = Vec2(hit->pos[tcidx[i][0]], hit->pos[tcidx[i][1]]);
 				}
 			}
 		}
@@ -205,21 +205,21 @@ Plane::Plane()
 {
 }
 
-Plane::Plane(const Vector3 &p, const Vector3 &norm)
+Plane::Plane(const Vec3 &p, const Vec3 &norm)
 	: pt(p)
 {
-	normal = norm.normalized();
+	normal = normalize(norm);
 }
 
-Plane::Plane(const Vector3 &p1, const Vector3 &p2, const Vector3 &p3)
+Plane::Plane(const Vec3 &p1, const Vec3 &p2, const Vec3 &p3)
 	: pt(p1)
 {
-	normal = cross_product(p2 - p1, p3 - p1).normalized();
+	normal = normalize(cross(p2 - p1, p3 - p1));
 }
 
-Plane::Plane(const Vector3 &normal, float dist)
+Plane::Plane(const Vec3 &normal, float dist)
 {
-	this->normal = normal.normalized();
+	this->normal = normalize(normal);
 	pt = this->normal * dist;
 }
 
@@ -235,14 +235,14 @@ void Plane::set_intersection(const GeomObject *obj1, const GeomObject *obj2)
 
 bool Plane::intersect(const Ray &ray, HitPoint *hit) const
 {
-	float ndotdir = dot_product(normal, ray.dir);
+	float ndotdir = dot(normal, ray.dir);
 	if(fabs(ndotdir) < 1e-4) {
 		return false;
 	}
 
 	if(hit) {
-		Vector3 ptdir = pt - ray.origin;
-		float t = dot_product(normal, ptdir) / ndotdir;
+		Vec3 ptdir = pt - ray.origin;
+		float t = dot(normal, ptdir) / ndotdir;
 
 		hit->pos = ray.origin + ray.dir * t;
 		hit->normal = normal;
@@ -251,16 +251,16 @@ bool Plane::intersect(const Ray &ray, HitPoint *hit) const
 	return true;
 }
 
-float sphere_distance(const Vector3 &cent, float rad, const Vector3 &pt)
+float sphere_distance(const Vec3 &cent, float rad, const Vec3 &pt)
 {
-	return (pt - cent).length() - rad;
+	return length(pt - cent) - rad;
 }
 
 // TODO version which takes both radii into account
-float capsule_distance(const Vector3 &a, float ra, const Vector3 &b, float rb, const Vector3 &pt)
+float capsule_distance(const Vec3 &a, float ra, const Vec3 &b, float rb, const Vec3 &pt)
 {
-	Vector3 ab_dir = b - a;
-	float ab_len_sq = ab_dir.length_sq();
+	Vec3 ab_dir = b - a;
+	float ab_len_sq = length_sq(ab_dir);
 
 	if(fabs(ab_len_sq) < 1e-5) {
 		// if a == b, the capsule is a sphere with radius the maximum of the capsule radii
@@ -268,9 +268,9 @@ float capsule_distance(const Vector3 &a, float ra, const Vector3 &b, float rb, c
 	}
 	float ab_len = sqrt(ab_len_sq);
 
-	Vector3 ap_dir = pt - a;
+	Vec3 ap_dir = pt - a;
 
-	float t = dot_product(ap_dir, ab_dir / ab_len) / ab_len;
+	float t = dot(ap_dir, ab_dir / ab_len) / ab_len;
 	if(t < 0.0) {
 		return sphere_distance(a, ra, pt);
 	}
@@ -278,42 +278,42 @@ float capsule_distance(const Vector3 &a, float ra, const Vector3 &b, float rb, c
 		return sphere_distance(b, rb, pt);
 	}
 
-	Vector3 pproj = a + ab_dir * t;
-	return (pproj - pt).length() - ra;
+	Vec3 pproj = a + ab_dir * t;
+	return length(pproj - pt) - ra;
 }
 
 #if 0
-float capsule_distance(const Vector3 &a, float ra, const Vector3 &b, float rb, const Vector3 &pt)
+float capsule_distance(const Vec3 &a, float ra, const Vec3 &b, float rb, const Vec3 &pt)
 {
-	Vector3 ab_dir = b - a;
+	Vec3 ab_dir = b - a;
 
-	if(fabs(ab_dir.length_sq()) < 1e-5) {
+	if(fabs(length_sq(ab_dir)) < 1e-5) {
 		// if a == b, the capsule is a sphere with radius the maximum of the capsule radii
 		return sphere_distance(a, std::max(ra, rb), pt);
 	}
-	float ab_len = ab_dir.length();
+	float ab_len = length(ab_dir);
 
-	Vector3 ap_dir = pt - a;
-	Vector3 rotaxis = cross_product(ab_dir, ap_dir).normalized();
+	Vec3 ap_dir = pt - a;
+	Vec3 rotaxis = normalize(cross(ab_dir, ap_dir));
 
-	Matrix4x4 rmat;
+	Mat4 rmat;
 	rmat.set_rotation(rotaxis, M_PI / 2.0);
-	Vector3 right = ab_dir.transformed(rmat) / ab_len;
+	Vec3 right = rmat * ab_dir / ab_len;
 
 	// XXX I think this check is redundant, always false, due to the cross product order
-	//assert(dot_product(right, ab_dir) >= 0.0);
-	if(dot_product(right, ab_dir) < 0.0) {
+	//assert(dot(right, ab_dir) >= 0.0);
+	if(dot(right, ab_dir) < 0.0) {
 		right = -right;
 	}
-	Vector3 aa = a + right * ra;
-	Vector3 bb = b + right * rb;
+	Vec3 aa = a + right * ra;
+	Vec3 bb = b + right * rb;
 
 	// project pt to the line segment bb-aa, see if the projection lies within the interval [0, 1)
-	Vector3 aabb_dir = bb - aa;
-	float aabb_len = aabb_dir.length();
-	Vector3 aap_dir = pt - aa;
+	Vec3 aabb_dir = bb - aa;
+	float aabb_len = length(aabb_dir);
+	Vec3 aap_dir = pt - aa;
 
-	float t = dot_product(aap_dir, aabb_dir / aabb_len) / aabb_len;
+	float t = dot(aap_dir, aabb_dir / aabb_len) / aabb_len;
 	if(t < 0.0) {
 		return sphere_distance(a, ra, pt);
 	}
@@ -321,11 +321,11 @@ float capsule_distance(const Vector3 &a, float ra, const Vector3 &b, float rb, c
 		return sphere_distance(b, rb, pt);
 	}
 
-	Vector3 ppt = aa + aabb_dir * t;
-	Vector3 norm = ppt - pt;
-	float dist = norm.length();
+	Vec3 ppt = aa + aabb_dir * t;
+	Vec3 norm = ppt - pt;
+	float dist = length(norm);
 
-	if(dot_product(norm, right) < 0.0) {
+	if(dot(norm, right) < 0.0) {
 		// inside the cone
 		dist = -dist;
 	}

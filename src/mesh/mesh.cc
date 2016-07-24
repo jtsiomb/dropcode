@@ -229,7 +229,7 @@ const float *Mesh::get_attrib_data(int attrib) const
 	return &vattr[attrib].data[0];
 }
 
-void Mesh::set_attrib(int attrib, int idx, const Vector4 &v)
+void Mesh::set_attrib(int attrib, int idx, const Vec4 &v)
 {
 	float *data = get_attrib_data(attrib);
 	if(data) {
@@ -240,9 +240,9 @@ void Mesh::set_attrib(int attrib, int idx, const Vector4 &v)
 	}
 }
 
-Vector4 Mesh::get_attrib(int attrib, int idx) const
+Vec4 Mesh::get_attrib(int attrib, int idx) const
 {
-	Vector4 v(0.0, 0.0, 0.0, 1.0);
+	Vec4 v(0.0, 0.0, 0.0, 1.0);
 	const float *data = get_attrib_data(attrib);
 	if(data) {
 		data += idx * vattr[attrib].nelem;
@@ -368,7 +368,7 @@ void Mesh::append(const Mesh &mesh)
 // assemble a complete vertex by adding all the useful attributes
 void Mesh::vertex(float x, float y, float z)
 {
-	cur_val[MESH_ATTR_VERTEX] = Vector4(x, y, z, 1.0f);
+	cur_val[MESH_ATTR_VERTEX] = Vec4(x, y, z, 1.0f);
 	vattr[MESH_ATTR_VERTEX].data_valid = true;
 	vattr[MESH_ATTR_VERTEX].nelem = 3;
 
@@ -389,35 +389,35 @@ void Mesh::vertex(float x, float y, float z)
 
 void Mesh::normal(float nx, float ny, float nz)
 {
-	cur_val[MESH_ATTR_NORMAL] = Vector4(nx, ny, nz, 1.0f);
+	cur_val[MESH_ATTR_NORMAL] = Vec4(nx, ny, nz, 1.0f);
 	vattr[MESH_ATTR_NORMAL].data_valid = true;
 	vattr[MESH_ATTR_NORMAL].nelem = 3;
 }
 
 void Mesh::tangent(float tx, float ty, float tz)
 {
-	cur_val[MESH_ATTR_TANGENT] = Vector4(tx, ty, tz, 1.0f);
+	cur_val[MESH_ATTR_TANGENT] = Vec4(tx, ty, tz, 1.0f);
 	vattr[MESH_ATTR_TANGENT].data_valid = true;
 	vattr[MESH_ATTR_TANGENT].nelem = 3;
 }
 
 void Mesh::texcoord(float u, float v, float w)
 {
-	cur_val[MESH_ATTR_TEXCOORD] = Vector4(u, v, w, 1.0f);
+	cur_val[MESH_ATTR_TEXCOORD] = Vec4(u, v, w, 1.0f);
 	vattr[MESH_ATTR_TEXCOORD].data_valid = true;
 	vattr[MESH_ATTR_TEXCOORD].nelem = 3;
 }
 
 void Mesh::boneweights(float w1, float w2, float w3, float w4)
 {
-	cur_val[MESH_ATTR_BONEWEIGHTS] = Vector4(w1, w2, w3, w4);
+	cur_val[MESH_ATTR_BONEWEIGHTS] = Vec4(w1, w2, w3, w4);
 	vattr[MESH_ATTR_BONEWEIGHTS].data_valid = true;
 	vattr[MESH_ATTR_BONEWEIGHTS].nelem = 4;
 }
 
 void Mesh::boneidx(int idx1, int idx2, int idx3, int idx4)
 {
-	cur_val[MESH_ATTR_BONEIDX] = Vector4(idx1, idx2, idx3, idx4);
+	cur_val[MESH_ATTR_BONEIDX] = Vec4(idx1, idx2, idx3, idx4);
 	vattr[MESH_ATTR_BONEIDX].data_valid = true;
 	vattr[MESH_ATTR_BONEIDX].nelem = 4;
 }
@@ -470,29 +470,25 @@ float Mesh::get_vis_vecsize()
 	return Mesh::vis_vecsize;
 }
 
-void Mesh::apply_xform(const Matrix4x4 &xform)
+void Mesh::apply_xform(const Mat4 &xform)
 {
-	Matrix4x4 dir_xform;// = xform.inverse().transposed();
-	dir_xform[0][3] = dir_xform[1][3] = dir_xform[2][3] = 0.0f;
-	dir_xform[3][0] = dir_xform[3][1] = dir_xform[3][2] = 0.0f;
-	dir_xform[3][3] = 1.0f;
-
+	Mat4 dir_xform = xform.upper3x3();
 	apply_xform(xform, dir_xform);
 }
 
-void Mesh::apply_xform(const Matrix4x4 &xform, const Matrix4x4 &dir_xform)
+void Mesh::apply_xform(const Mat4 &xform, const Mat4 &dir_xform)
 {
 	for(unsigned int i=0; i<nverts; i++) {
-		Vector4 v = get_attrib(MESH_ATTR_VERTEX, i);
-		set_attrib(MESH_ATTR_VERTEX, i, v.transformed(xform));
+		Vec4 v = get_attrib(MESH_ATTR_VERTEX, i);
+		set_attrib(MESH_ATTR_VERTEX, i, xform * v);
 
 		if(has_attrib(MESH_ATTR_NORMAL)) {
-			Vector3 n = get_attrib(MESH_ATTR_NORMAL, i);
-			set_attrib(MESH_ATTR_NORMAL, i, n.transformed(dir_xform));
+			Vec3 n = Vec3(get_attrib(MESH_ATTR_NORMAL, i));
+			set_attrib(MESH_ATTR_NORMAL, i, Vec4(dir_xform * n));
 		}
 		if(has_attrib(MESH_ATTR_TANGENT)) {
-			Vector3 t = get_attrib(MESH_ATTR_TANGENT, i);
-			set_attrib(MESH_ATTR_TANGENT, i, t.transformed(dir_xform));
+			Vec3 t = Vec3(get_attrib(MESH_ATTR_TANGENT, i));
+			set_attrib(MESH_ATTR_TANGENT, i, Vec4(dir_xform * t));
 		}
 	}
 }
@@ -517,12 +513,12 @@ void Mesh::flip_faces()
 		}
 
 	} else {
-		Vector3 *verts = (Vector3*)get_attrib_data(MESH_ATTR_VERTEX);
+		Vec3 *verts = (Vec3*)get_attrib_data(MESH_ATTR_VERTEX);
 		if(!verts) return;
 
 		int vnum = get_attrib_count(MESH_ATTR_VERTEX);
 		for(int i=0; i<vnum; i+=3) {
-			Vector3 tmp = verts[i + 2];
+			Vec3 tmp = verts[i + 2];
 			verts[i + 2] = verts[i + 1];
 			verts[i + 1] = tmp;
 		}
@@ -531,7 +527,7 @@ void Mesh::flip_faces()
 
 void Mesh::flip_normals()
 {
-	Vector3 *normals = (Vector3*)get_attrib_data(MESH_ATTR_NORMAL);
+	Vec3 *normals = (Vec3*)get_attrib_data(MESH_ATTR_NORMAL);
 	if(!normals) return;
 
 	int num = get_attrib_count(MESH_ATTR_NORMAL);
@@ -688,8 +684,8 @@ void Mesh::draw_normals() const
 	int cur_sdr = 0;
 	glGetIntegerv(GL_CURRENT_PROGRAM, &cur_sdr);
 
-	Vector3 *varr = (Vector3*)get_attrib_data(MESH_ATTR_VERTEX);
-	Vector3 *norm = (Vector3*)get_attrib_data(MESH_ATTR_NORMAL);
+	Vec3 *varr = (Vec3*)get_attrib_data(MESH_ATTR_VERTEX);
+	Vec3 *norm = (Vec3*)get_attrib_data(MESH_ATTR_NORMAL);
 	if(!varr || !norm) {
 		return;
 	}
@@ -704,13 +700,13 @@ void Mesh::draw_normals() const
 
 		for(size_t i=0; i<nverts; i++) {
 			glVertexAttrib3f(vert_loc, varr[i].x, varr[i].y, varr[i].z);
-			Vector3 end = varr[i] + norm[i] * vis_vecsize;
+			Vec3 end = varr[i] + norm[i] * vis_vecsize;
 			glVertexAttrib3f(vert_loc, end.x, end.y, end.z);
 		}
 	} else {
 		for(size_t i=0; i<nverts; i++) {
 			glVertex3f(varr[i].x, varr[i].y, varr[i].z);
-			Vector3 end = varr[i] + norm[i] * vis_vecsize;
+			Vec3 end = varr[i] + norm[i] * vis_vecsize;
 			glVertex3f(end.x, end.y, end.z);
 		}
 	}
@@ -724,8 +720,8 @@ void Mesh::draw_tangents() const
 	int cur_sdr = 0;
 	glGetIntegerv(GL_CURRENT_PROGRAM, &cur_sdr);
 
-	Vector3 *varr = (Vector3*)get_attrib_data(MESH_ATTR_VERTEX);
-	Vector3 *tang = (Vector3*)get_attrib_data(MESH_ATTR_TANGENT);
+	Vec3 *varr = (Vec3*)get_attrib_data(MESH_ATTR_VERTEX);
+	Vec3 *tang = (Vec3*)get_attrib_data(MESH_ATTR_TANGENT);
 	if(!varr || !tang) {
 		return;
 	}
@@ -740,13 +736,13 @@ void Mesh::draw_tangents() const
 
 		for(size_t i=0; i<nverts; i++) {
 			glVertexAttrib3f(vert_loc, varr[i].x, varr[i].y, varr[i].z);
-			Vector3 end = varr[i] + tang[i] * vis_vecsize;
+			Vec3 end = varr[i] + tang[i] * vis_vecsize;
 			glVertexAttrib3f(vert_loc, end.x, end.y, end.z);
 		}
 	} else {
 		for(size_t i=0; i<nverts; i++) {
 			glVertex3f(varr[i].x, varr[i].y, varr[i].z);
-			Vector3 end = varr[i] + tang[i] * vis_vecsize;
+			Vec3 end = varr[i] + tang[i] * vis_vecsize;
 			glVertex3f(end.x, end.y, end.z);
 		}
 	}
@@ -754,7 +750,7 @@ void Mesh::draw_tangents() const
 #endif	// USE_OLDGL
 }
 
-void Mesh::get_aabbox(Vector3 *vmin, Vector3 *vmax) const
+void Mesh::get_aabbox(Vec3 *vmin, Vec3 *vmax) const
 {
 	if(!aabb_valid) {
 		((Mesh*)this)->calc_aabb();
@@ -771,7 +767,7 @@ const AABox &Mesh::get_aabbox() const
 	return aabb;
 }
 
-float Mesh::get_bsphere(Vector3 *center, float *rad) const
+float Mesh::get_bsphere(Vec3 *center, float *rad) const
 {
 	if(!bsph_valid) {
 		((Mesh*)this)->calc_bsph();
@@ -817,8 +813,8 @@ bool Mesh::intersect(const Ray &ray, HitPoint *hit) const
 {
 	assert((Mesh::intersect_mode & (ISECT_VERTICES | ISECT_FACE)) != (ISECT_VERTICES | ISECT_FACE));
 
-	const Vector3 *varr = (Vector3*)get_attrib_data(MESH_ATTR_VERTEX);
-	const Vector3 *narr = (Vector3*)get_attrib_data(MESH_ATTR_NORMAL);
+	const Vec3 *varr = (Vec3*)get_attrib_data(MESH_ATTR_VERTEX);
+	const Vec3 *narr = (Vec3*)get_attrib_data(MESH_ATTR_NORMAL);
 	if(!varr) {
 		return false;
 	}
@@ -842,15 +838,15 @@ bool Mesh::intersect(const Ray &ray, HitPoint *hit) const
 
 		for(unsigned int i=0; i<nverts; i++) {
 
-			if((Mesh::intersect_mode & ISECT_FRONT) && dot_product(narr[i], ray.dir) > 0) {
+			if((Mesh::intersect_mode & ISECT_FRONT) && dot(narr[i], ray.dir) > 0) {
 				continue;
 			}
 
 			// project the vertex onto the ray line
-			float t = dot_product(varr[i] - ray.origin, ray.dir);
-			Vector3 vproj = ray.origin + ray.dir * t;
+			float t = dot(varr[i] - ray.origin, ray.dir);
+			Vec3 vproj = ray.origin + ray.dir * t;
 
-			float dist_sq = (vproj - varr[i]).length_sq();
+			float dist_sq = length_sq(vproj - varr[i]);
 			if(dist_sq < thres_sq) {
 				if(!hit) {
 					return true;
@@ -874,7 +870,7 @@ bool Mesh::intersect(const Ray &ray, HitPoint *hit) const
 			Triangle face(i, varr, idxarr);
 
 			// ignore back-facing polygons if the mode flags include ISECT_FRONT
-			if((Mesh::intersect_mode & ISECT_FRONT) && dot_product(face.get_normal(), ray.dir) > 0) {
+			if((Mesh::intersect_mode & ISECT_FRONT) && dot(face.get_normal(), ray.dir) > 0) {
 				continue;
 			}
 
@@ -911,19 +907,19 @@ bool Mesh::intersect(const Ray &ray, HitPoint *hit) const
 
 
 // texture coordinate manipulation
-void Mesh::texcoord_apply_xform(const Matrix4x4 &xform)
+void Mesh::texcoord_apply_xform(const Mat4 &xform)
 {
 	if(!has_attrib(MESH_ATTR_TEXCOORD)) {
 		return;
 	}
 
 	for(unsigned int i=0; i<nverts; i++) {
-		Vector4 tc = get_attrib(MESH_ATTR_TEXCOORD, i);
-		set_attrib(MESH_ATTR_TEXCOORD, i, tc.transformed(xform));
+		Vec4 tc = get_attrib(MESH_ATTR_TEXCOORD, i);
+		set_attrib(MESH_ATTR_TEXCOORD, i, xform * tc);
 	}
 }
 
-void Mesh::texcoord_gen_plane(const Vector3 &norm, const Vector3 &tang)
+void Mesh::texcoord_gen_plane(const Vec3 &norm, const Vec3 &tang)
 {
 	if(!nverts) return;
 
@@ -932,19 +928,19 @@ void Mesh::texcoord_gen_plane(const Vector3 &norm, const Vector3 &tang)
 		set_attrib_data(MESH_ATTR_TEXCOORD, 2, nverts);
 	}
 
-	Vector3 n = norm.normalized();
-	Vector3 b = cross_product(n, tang).normalized();
-	Vector3 t = cross_product(b, n);
+	Vec3 n = normalize(norm);
+	Vec3 b = normalize(cross(n, tang));
+	Vec3 t = cross(b, n);
 
 	for(unsigned int i=0; i<nverts; i++) {
-		Vector3 pos = get_attrib(MESH_ATTR_VERTEX, i);
+		Vec3 pos = Vec3(get_attrib(MESH_ATTR_VERTEX, i));
 
 		// distance along the tangent direction
-		float u = dot_product(pos, t);
+		float u = dot(pos, t);
 		// distance along the bitangent direction
-		float v = dot_product(pos, b);
+		float v = dot(pos, b);
 
-		set_attrib(MESH_ATTR_TEXCOORD, i, Vector4(u, v, 0, 1));
+		set_attrib(MESH_ATTR_TEXCOORD, i, Vec4(u, v, 0, 1));
 	}
 }
 
@@ -958,8 +954,8 @@ void Mesh::texcoord_gen_box()
 	}
 
 	for(unsigned int i=0; i<nverts; i++) {
-		Vector3 pos = Vector3(get_attrib(MESH_ATTR_VERTEX, i)) * 0.5 + Vector3(0.5, 0.5, 0.5);
-		Vector3 norm = get_attrib(MESH_ATTR_NORMAL, i);
+		Vec3 pos = Vec3(get_attrib(MESH_ATTR_VERTEX, i)) * 0.5 + Vec3(0.5, 0.5, 0.5);
+		Vec3 norm = Vec3(get_attrib(MESH_ATTR_NORMAL, i));
 
 		float abs_nx = fabs(norm.x);
 		float abs_ny = fabs(norm.y);
@@ -972,7 +968,7 @@ void Mesh::texcoord_gen_box()
 
 			*uvptr++ = pos[j];
 		}
-		set_attrib(MESH_ATTR_TEXCOORD, i, Vector4(uv[0], uv[1], 0, 1));
+		set_attrib(MESH_ATTR_TEXCOORD, i, Vec4(uv[0], uv[1], 0, 1));
 	}
 }
 
@@ -986,7 +982,7 @@ void Mesh::texcoord_gen_cylinder()
 	}
 
 	for(unsigned int i=0; i<nverts; i++) {
-		Vector3 pos = get_attrib(MESH_ATTR_VERTEX, i);
+		Vec3 pos = Vec3(get_attrib(MESH_ATTR_VERTEX, i));
 
 		float rho = sqrt(pos.x * pos.x + pos.z * pos.z);
 		float theta = rho == 0.0 ? 0.0 : atan2(pos.z / rho, pos.x / rho);
@@ -994,7 +990,7 @@ void Mesh::texcoord_gen_cylinder()
 		float u = theta / (2.0 * M_PI) + 0.5;
 		float v = pos.y;
 
-		set_attrib(MESH_ATTR_TEXCOORD, i, Vector4(u, v, 0, 1));
+		set_attrib(MESH_ATTR_TEXCOORD, i, Vec4(u, v, 0, 1));
 	}
 }
 
@@ -1024,7 +1020,7 @@ bool Mesh::dump(FILE *fp) const
 		fprintf(fp, "%5u:", i);
 		for(int j=0; j<NUM_MESH_ATTR; j++) {
 			if(has_attrib(j)) {
-				Vector4 v = get_attrib(j, i);
+				Vec4 v = get_attrib(j, i);
 				int nelem = vattr[j].nelem;
 				fprintf(fp, elemfmt[nelem], label[j], v.x, v.y, v.z, v.w);
 			}
@@ -1066,20 +1062,20 @@ bool Mesh::dump_obj(FILE *fp) const
 	}
 
 	for(int i=0; i<(int)nverts; i++) {
-		Vector4 v = get_attrib(MESH_ATTR_VERTEX, i);
+		Vec4 v = get_attrib(MESH_ATTR_VERTEX, i);
 		fprintf(fp, "v %g %g %g\n", v.x, v.y, v.z);
 	}
 
 	if(has_attrib(MESH_ATTR_NORMAL)) {
 		for(int i=0; i<(int)nverts; i++) {
-			Vector4 v = get_attrib(MESH_ATTR_NORMAL, i);
+			Vec4 v = get_attrib(MESH_ATTR_NORMAL, i);
 			fprintf(fp, "vn %g %g %g\n", v.x, v.y, v.z);
 		}
 	}
 
 	if(has_attrib(MESH_ATTR_TEXCOORD)) {
 		for(int i=0; i<(int)nverts; i++) {
-			Vector4 v = get_attrib(MESH_ATTR_TEXCOORD, i);
+			Vec4 v = get_attrib(MESH_ATTR_TEXCOORD, i);
 			fprintf(fp, "vt %g %g\n", v.x, v.y);
 		}
 	}
@@ -1122,11 +1118,11 @@ void Mesh::calc_aabb()
 		return;
 	}
 
-	aabb.min = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
+	aabb.min = Vec3(FLT_MAX, FLT_MAX, FLT_MAX);
 	aabb.max = -aabb.min;
 
 	for(unsigned int i=0; i<nverts; i++) {
-		Vector4 v = get_attrib(MESH_ATTR_VERTEX, i);
+		Vec4 v = get_attrib(MESH_ATTR_VERTEX, i);
 		for(int j=0; j<3; j++) {
 			if(v[j] < aabb.min[j]) {
 				aabb.min[j] = v[j];
@@ -1146,20 +1142,20 @@ void Mesh::calc_bsph()
 		return;
 	}
 
-	Vector3 v;
-	bsph.center = Vector3(0, 0, 0);
+	Vec3 v;
+	bsph.center = Vec3(0, 0, 0);
 
 	// first find the center
 	for(unsigned int i=0; i<nverts; i++) {
-		v = get_attrib(MESH_ATTR_VERTEX, i);
+		v = Vec3(get_attrib(MESH_ATTR_VERTEX, i));
 		bsph.center += v;
 	}
 	bsph.center /= (float)nverts;
 
 	bsph.radius = 0.0f;
 	for(unsigned int i=0; i<nverts; i++) {
-		v = get_attrib(MESH_ATTR_VERTEX, i);
-		float dist_sq = (v - bsph.center).length_sq();
+		v = Vec3(get_attrib(MESH_ATTR_VERTEX, i));
+		float dist_sq = length_sq(v - bsph.center);
 		if(dist_sq > bsph.radius) {
 			bsph.radius = dist_sq;
 		}
@@ -1244,7 +1240,7 @@ Triangle::Triangle()
 	id = -1;
 }
 
-Triangle::Triangle(const Vector3 &v0, const Vector3 &v1, const Vector3 &v2)
+Triangle::Triangle(const Vec3 &v0, const Vec3 &v1, const Vec3 &v2)
 {
 	v[0] = v0;
 	v[1] = v1;
@@ -1253,7 +1249,7 @@ Triangle::Triangle(const Vector3 &v0, const Vector3 &v1, const Vector3 &v2)
 	id = -1;
 }
 
-Triangle::Triangle(int n, const Vector3 *varr, const unsigned int *idxarr)
+Triangle::Triangle(int n, const Vec3 *varr, const unsigned int *idxarr)
 {
 	if(idxarr) {
 		v[0] = varr[idxarr[n * 3]];
@@ -1270,11 +1266,11 @@ Triangle::Triangle(int n, const Vector3 *varr, const unsigned int *idxarr)
 
 void Triangle::calc_normal()
 {
-	normal = cross_product(v[1] - v[0], v[2] - v[0]).normalized();
+	normal = normalize(cross(v[1] - v[0], v[2] - v[0]));
 	normal_valid = true;
 }
 
-const Vector3 &Triangle::get_normal() const
+const Vec3 &Triangle::get_normal() const
 {
 	if(!normal_valid) {
 		((Triangle*)this)->calc_normal();
@@ -1282,20 +1278,18 @@ const Vector3 &Triangle::get_normal() const
 	return normal;
 }
 
-void Triangle::transform(const Matrix4x4 &xform)
+void Triangle::transform(const Mat4 &xform)
 {
-	v[0].transform(xform);
-	v[1].transform(xform);
-	v[2].transform(xform);
+	v[0] = xform * v[0];
+	v[1] = xform * v[1];
+	v[2] = xform * v[2];
 	normal_valid = false;
 }
 
 void Triangle::draw() const
 {
-	Vector3 n[3];
-	n[0] = get_normal();
-	n[1] = get_normal();
-	n[2] = get_normal();
+	Vec3 n[3];
+	n[0] = n[1] = n[2] = get_normal();
 
 	int vloc = Mesh::get_attrib_location(MESH_ATTR_VERTEX);
 	int nloc = Mesh::get_attrib_location(MESH_ATTR_NORMAL);
@@ -1323,36 +1317,36 @@ void Triangle::draw_wire() const
 	glDisableVertexAttribArray(vloc);
 }
 
-Vector3 Triangle::calc_barycentric(const Vector3 &pos) const
+Vec3 Triangle::calc_barycentric(const Vec3 &pos) const
 {
-	Vector3 norm = get_normal();
+	Vec3 norm = get_normal();
 
-	float area_sq = fabs(dot_product(cross_product(v[1] - v[0], v[2] - v[0]), norm));
+	float area_sq = fabs(dot(cross(v[1] - v[0], v[2] - v[0]), norm));
 	if(area_sq < 1e-5) {
-		return Vector3(0, 0, 0);
+		return Vec3(0, 0, 0);
 	}
 
-	float asq0 = fabs(dot_product(cross_product(v[1] - pos, v[2] - pos), norm));
-	float asq1 = fabs(dot_product(cross_product(v[2] - pos, v[0] - pos), norm));
-	float asq2 = fabs(dot_product(cross_product(v[0] - pos, v[1] - pos), norm));
+	float asq0 = fabs(dot(cross(v[1] - pos, v[2] - pos), norm));
+	float asq1 = fabs(dot(cross(v[2] - pos, v[0] - pos), norm));
+	float asq2 = fabs(dot(cross(v[0] - pos, v[1] - pos), norm));
 
-	return Vector3(asq0 / area_sq, asq1 / area_sq, asq2 / area_sq);
+	return Vec3(asq0 / area_sq, asq1 / area_sq, asq2 / area_sq);
 }
 
 bool Triangle::intersect(const Ray &ray, HitPoint *hit) const
 {
-	Vector3 normal = get_normal();
+	Vec3 normal = get_normal();
 
-	float ndotdir = dot_product(ray.dir, normal);
+	float ndotdir = dot(ray.dir, normal);
 	if(fabs(ndotdir) < 1e-4) {
 		return false;
 	}
 
-	Vector3 vertdir = v[0] - ray.origin;
-	float t = dot_product(normal, vertdir) / ndotdir;
+	Vec3 vertdir = v[0] - ray.origin;
+	float t = dot(normal, vertdir) / ndotdir;
 
-	Vector3 pos = ray.origin + ray.dir * t;
-	Vector3 bary = calc_barycentric(pos);
+	Vec3 pos = ray.origin + ray.dir * t;
+	Vec3 bary = calc_barycentric(pos);
 
 	if(bary.x + bary.y + bary.z > 1.00001) {
 		return false;

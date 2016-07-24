@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
-#include "vmath/vmath.h"
+#include "gmath/gmath.h"
 #include "geom.h"
 
 enum {
@@ -32,26 +32,26 @@ enum {
 
 class Triangle {
 public:
-	Vector3 v[3];
-	Vector3 normal;
+	Vec3 v[3];
+	Vec3 normal;
 	bool normal_valid;
 	int id;
 
 	Triangle();
-	Triangle(const Vector3 &v0, const Vector3 &v1, const Vector3 &v2);
-	Triangle(int n, const Vector3 *varr, const unsigned int *idxarr = 0);
+	Triangle(const Vec3 &v0, const Vec3 &v1, const Vec3 &v2);
+	Triangle(int n, const Vec3 *varr, const unsigned int *idxarr = 0);
 
 	/// calculate normal (quite expensive)
 	void calc_normal();
-	const Vector3 &get_normal() const;
+	const Vec3 &get_normal() const;
 
-	void transform(const Matrix4x4 &xform);
+	void transform(const Mat4 &xform);
 
 	void draw() const;
 	void draw_wire() const;
 
 	/// calculate barycentric coordinates of a point
-	Vector3 calc_barycentric(const Vector3 &pos) const;
+	Vec3 calc_barycentric(const Vec3 &pos) const;
 
 	bool intersect(const Ray &ray, HitPoint *hit = 0) const;
 };
@@ -64,7 +64,7 @@ private:
 
 	// current value for each attribute for the immedate mode
 	// interface.
-	Vector4 cur_val[NUM_MESH_ATTR];
+	Vec4 cur_val[NUM_MESH_ATTR];
 
 	unsigned int buffer_objects[NUM_MESH_ATTR + 1];
 
@@ -103,7 +103,7 @@ private:
 	// keeps the last intersected face
 	mutable Triangle hitface;
 	// keeps the last intersected vertex position
-	mutable Vector3 hitvert;
+	mutable Vec3 hitvert;
 
 	void calc_aabb();
 	void calc_bsph();
@@ -149,8 +149,8 @@ public:
 	const float *get_attrib_data(int attrib) const;
 
 	// simple access to any particular attribute
-	void set_attrib(int attrib, int idx, const Vector4 &v); // invalidates vbo
-	Vector4 get_attrib(int attrib, int idx) const;
+	void set_attrib(int attrib, int idx, const Vec4 &v); // invalidates vbo
+	Vec4 get_attrib(int attrib, int idx) const;
 
 	int get_attrib_count(int attrib) const;
 
@@ -176,8 +176,8 @@ public:
 	/* apply a transformation to the vertices and its inverse-transpose
 	 * to the normals and tangents.
 	 */
-	void apply_xform(const Matrix4x4 &xform);
-	void apply_xform(const Matrix4x4 &xform, const Matrix4x4 &dir_xform);
+	void apply_xform(const Mat4 &xform);
+	void apply_xform(const Mat4 &xform, const Mat4 &dir_xform);
 
 	void flip();	// both faces and normals
 	void flip_faces();
@@ -206,7 +206,7 @@ public:
 	 * calls will return the same box. The cache gets invalidated by any functions that can affect
 	 * the vertex data (non-const variant of get_attrib_data(MESH_ATTR_VERTEX, ...) included).
 	 * @{ */
-	void get_aabbox(Vector3 *vmin, Vector3 *vmax) const;
+	void get_aabbox(Vec3 *vmin, Vec3 *vmax) const;
 	const AABox &get_aabbox() const;
 	/// @}
 
@@ -214,7 +214,7 @@ public:
 	 * calls will return the same box. The cache gets invalidated by any functions that can affect
 	 * the vertex data (non-const variant of get_attrib_data(MESH_ATTR_VERTEX, ...) included).
 	 * @{ */
-	float get_bsphere(Vector3 *center, float *rad) const;
+	float get_bsphere(Vec3 *center, float *rad) const;
 	const Sphere &get_bsphere() const;
 
 	static void set_intersect_mode(unsigned int mode);
@@ -229,8 +229,8 @@ public:
 	bool intersect(const Ray &ray, HitPoint *hit = 0) const;
 
 	// texture coordinate manipulation
-	void texcoord_apply_xform(const Matrix4x4 &xform);
-	void texcoord_gen_plane(const Vector3 &norm, const Vector3 &tang);
+	void texcoord_apply_xform(const Mat4 &xform);
+	void texcoord_gen_plane(const Vec3 &norm, const Vec3 &tang);
 	void texcoord_gen_box();
 	void texcoord_gen_cylinder();
 

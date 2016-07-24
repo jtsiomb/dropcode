@@ -32,6 +32,7 @@ license.
  - ilist.h: intrusive linked list (C++ template class)
  - logger.h/logger.c: message logging of various types and multiple log targets
  - dynarr.h/dynarr.c: C dynamic/resizable array
+ - dos/: graphics, input, and timer code for protected mode DOS programs (watcom/dos4gw)
 
 ## Dependencies
 

@@ -263,7 +263,7 @@ unsigned int *Mesh::set_index_data(int num, const unsigned int *indices)
 {
 	int nidx = nfaces * 3;
 	if(nidx && num != nidx) {
-		fprintf(stderr, "%s: index count missmatch (%d instead of %d)\n", __FUNCTION__, num, nidx);
+		fprintf(stderr, "%s: index count mismatch (%d instead of %d)\n", __FUNCTION__, num, nidx);
 		return 0;
 	}
 	nfaces = num / 3;
@@ -662,8 +662,9 @@ void Mesh::draw_wire() const
 
 	((Mesh*)this)->update_wire_ibo();
 
+	int num_faces = get_poly_count();
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, wire_ibo);
-	glDrawElements(GL_LINES, nfaces * 6, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_LINES, num_faces * 6, GL_UNSIGNED_INT, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	post_draw();
@@ -1196,14 +1197,16 @@ void Mesh::update_wire_ibo()
 		glGenBuffers(1, &wire_ibo);
 	}
 
-	unsigned int *wire_idxarr = new unsigned int[nfaces * 6];
+	int num_faces = get_poly_count();
+
+	unsigned int *wire_idxarr = new unsigned int[num_faces * 6];
 	unsigned int *dest = wire_idxarr;
 
 	if(ibo_valid) {
 		// we're dealing with an indexed mesh
 		const unsigned int *idxarr = ((const Mesh*)this)->get_index_data();
 
-		for(unsigned int i=0; i<nfaces; i++) {
+		for(int i=0; i<num_faces; i++) {
 			*dest++ = idxarr[0];
 			*dest++ = idxarr[1];
 			*dest++ = idxarr[1];
@@ -1214,7 +1217,7 @@ void Mesh::update_wire_ibo()
 		}
 	} else {
 		// not an indexed mesh ...
-		for(unsigned int i=0; i<nfaces; i++) {
+		for(int i=0; i<num_faces; i++) {
 			int vidx = i * 3;
 			*dest++ = vidx;
 			*dest++ = vidx + 1;
@@ -1226,7 +1229,7 @@ void Mesh::update_wire_ibo()
 	}
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, wire_ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, nfaces * 6 * sizeof(unsigned int), wire_idxarr, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, num_faces * 6 * sizeof(unsigned int), wire_idxarr, GL_STATIC_DRAW);
 	delete [] wire_idxarr;
 	wire_ibo_valid = true;
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);

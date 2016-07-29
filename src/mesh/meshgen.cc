@@ -16,6 +16,8 @@ static Vec3 sphvec(float theta, float phi)
 
 void gen_sphere(Mesh *mesh, float rad, int usub, int vsub, float urange, float vrange)
 {
+	if(urange == 0.0 || vrange == 0.0) return;
+
 	if(usub < 4) usub = 4;
 	if(vsub < 2) vsub = 2;
 
@@ -49,7 +51,7 @@ void gen_sphere(Mesh *mesh, float rad, int usub, int vsub, float urange, float v
 			*varr++ = pos * rad;
 			*narr++ = pos;
 			*tarr++ = normalize(sphvec(theta + 0.1f, (float)M_PI / 2.0f) - sphvec(theta - 0.1f, (float)M_PI / 2.0f));
-			*uvarr++ = Vec2(u * urange, v * vrange);
+			*uvarr++ = Vec2(u / urange, v / vrange);
 
 			if(i < usub && j < vsub) {
 				int idx = i * vverts + j;
@@ -597,9 +599,9 @@ void gen_box(Mesh *mesh, float xsz, float ysz, float zsz, int usub, int vsub)
 		Mesh m;
 
 		gen_plane(&m, 1, 1, usub, vsub);
+		xform.translate(Vec3(0, 0, 0.5));
 		xform.rotate(Vec3(face_angles[i][1], face_angles[i][0], 0));
 		dir_xform = xform;
-		xform.translate(Vec3(0, 0, 0.5));
 		m.apply_xform(xform, dir_xform);
 
 		mesh->append(m);

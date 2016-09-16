@@ -14,6 +14,8 @@
 #include "sdr.h"
 
 static const char *sdrtypestr(unsigned int sdrtype);
+static int sdrtypeidx(unsigned int sdrtype);
+
 
 unsigned int create_vertex_shader(const char *src)
 {
@@ -57,11 +59,21 @@ unsigned int create_shader(const char *src, unsigned int sdr_type)
 	unsigned int sdr;
 	int success, info_len;
 	char *info_str = 0;
+	const char *src_str[3], *header, *footer;
+	int src_str_count = 0;
 	GLenum err;
+
+	if((header = get_shader_header(sdr_type))) {
+		src_str[src_str_count++] = header;
+	}
+	src_str[src_str_count++] = src;
+	if((footer = get_shader_footer(sdr_type))) {
+		src_str[src_str_count++] = footer;
+	}
 
 	sdr = glCreateShader(sdr_type);
 	assert(glGetError() == GL_NO_ERROR);
-	glShaderSource(sdr, 1, &src, 0);
+	glShaderSource(sdr, src_str_count, src_str, 0);
 	err = glGetError();
 	assert(err == GL_NO_ERROR);
 	glCompileShader(sdr);
@@ -302,6 +314,20 @@ int bind_program(unsigned int prog)
 	} \
 	return loc == -1 ? -1 : 0
 
+int get_uniform_loc(unsigned int prog, const char *name)
+{
+	int loc, curr_prog;
+	glGetIntegerv(GL_CURRENT_PROGRAM, &curr_prog);
+	if((unsigned int)curr_prog != prog && bind_program(prog) == -1) {
+		return -1;
+	}
+	loc = glGetUniformLocation(prog, name);
+	if((unsigned int)curr_prog != prog) {
+		bind_program(curr_prog);
+	}
+	return loc;
+}
+
 int set_uniform_int(unsigned int prog, const char *name, int val)
 {
 	BEGIN_UNIFORM_CODE {
@@ -342,7 +368,7 @@ int set_uniform_float4(unsigned int prog, const char *name, float x, float y, fl
 	END_UNIFORM_CODE;
 }
 
-int set_uniform_matrix4(unsigned int prog, const char *name, float *mat)
+int set_uniform_matrix4(unsigned int prog, const char *name, const float *mat)
 {
 	BEGIN_UNIFORM_CODE {
 		glUniformMatrix4fv(loc, 1, GL_FALSE, mat);
@@ -350,7 +376,7 @@ int set_uniform_matrix4(unsigned int prog, const char *name, float *mat)
 	END_UNIFORM_CODE;
 }
 
-int set_uniform_matrix4_transposed(unsigned int prog, const char *name, float *mat)
+int set_uniform_matrix4_transposed(unsigned int prog, const char *name, const float *mat)
 {
 	BEGIN_UNIFORM_CODE {
 		glUniformMatrix4fv(loc, 1, GL_TRUE, mat);
@@ -380,6 +406,116 @@ void set_attrib_float3(int attr_loc, float x, float y, float z)
 	glVertexAttrib3f(attr_loc, x, y, z);
 }
 
+/* ---- shader composition ---- */
+struct string {
+	char *text;
+	int len;
+};
+
+#define NUM_SHADER_TYPES	5
+static struct string header[NUM_SHADER_TYPES];
+static struct string footer[NUM_SHADER_TYPES];
+
+static void clear_string(struct string *str)
+{
+	free(str->text);
+	str->text = 0;
+	str->len = 0;
+}
+
+static void append_string(struct string *str, const char *s)
+{
+	int len, newlen;
+	char *newstr;
+
+	if(!s || !*s) return;
+
+	len = strlen(s);
+	newlen = str->len + len;
+	if(!(newstr = malloc(newlen + 2))) {	/* leave space for a possible newline */
+		fprintf(stderr, "shader composition: failed to append string of size %d\n", len);
+		abort();
+	}
+
+	if(str->text) {
+		memcpy(newstr, str->text, str->len);
+	}
+	memcpy(newstr + str->len, s, len + 1);
+
+	if(s[len - 1] != '\n') {
+		newstr[newlen] = '\n';
+		newstr[newlen + 1] = 0;
+	}
+
+	free(str->text);
+	str->text = newstr;
+	str->len = newlen;
+}
+
+void clear_shader_header(unsigned int type)
+{
+	if(type) {
+		int idx = sdrtypeidx(type);
+		clear_string(&header[idx]);
+	} else {
+		int i;
+		for(i=0; i<NUM_SHADER_TYPES; i++) {
+			clear_string(&header[i]);
+		}
+	}
+}
+
+void clear_shader_footer(unsigned int type)
+{
+	if(type) {
+		int idx = sdrtypeidx(type);
+		clear_string(&footer[idx]);
+	} else {
+		int i;
+		for(i=0; i<NUM_SHADER_TYPES; i++) {
+			clear_string(&footer[i]);
+		}
+	}
+}
+
+void add_shader_header(unsigned int type, const char *s)
+{
+	if(type) {
+		int idx = sdrtypeidx(type);
+		append_string(&header[idx], s);
+	} else {
+		int i;
+		for(i=0; i<NUM_SHADER_TYPES; i++) {
+			append_string(&header[i], s);
+		}
+	}
+}
+
+void add_shader_footer(unsigned int type, const char *s)
+{
+	if(type) {
+		int idx = sdrtypeidx(type);
+		append_string(&footer[idx], s);
+	} else {
+		int i;
+		for(i=0; i<NUM_SHADER_TYPES; i++) {
+			append_string(&footer[i], s);
+		}
+	}
+}
+
+const char *get_shader_header(unsigned int type)
+{
+	int idx = sdrtypeidx(type);
+	return header[idx].text;
+}
+
+const char *get_shader_footer(unsigned int type)
+{
+	int idx = sdrtypeidx(type);
+	return footer[idx].text;
+}
+
 static const char *sdrtypestr(unsigned int sdrtype)
 {
 	switch(sdrtype) {
@@ -404,4 +540,23 @@ static const char *sdrtypestr(unsigned int sdrtype)
 		break;
 	}
 	return "<unknown>";
+}
+
+static int sdrtypeidx(unsigned int sdrtype)
+{
+	switch(sdrtype) {
+	case GL_VERTEX_SHADER:
+		return 0;
+	case GL_FRAGMENT_SHADER:
+		return 1;
+	case GL_TESS_CONTROL_SHADER:
+		return 2;
+	case GL_TESS_EVALUATION_SHADER:
+		return 3;
+	case GL_GEOMETRY_SHADER:
+		return 4;
+	default:
+		break;
+	}
+	return 0;
 }

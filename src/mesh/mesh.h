@@ -69,7 +69,7 @@ private:
 	unsigned int buffer_objects[NUM_MESH_ATTR + 1];
 
 	// vertex attribute data and buffer objects
-	struct {
+	struct VertexAttrib {
 		int nelem;					// number of elements per attribute range: [1, 4]
 		std::vector<float> data;
 		unsigned int vbo;
@@ -182,6 +182,10 @@ public:
 	void flip();	// both faces and normals
 	void flip_faces();
 	void flip_normals();
+
+	void explode();	// undo all vertex sharing
+
+	void calc_face_normals(); // this is only guaranteed to work on an exploded mesh
 
 	// adds a bone and returns its index
 	/*int add_bone(XFormNode *bone);

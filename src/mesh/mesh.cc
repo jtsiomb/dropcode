@@ -536,6 +536,79 @@ void Mesh::flip_normals()
 	}
 }
 
+void Mesh::explode()
+{
+	if(!is_indexed()) return;	// no vertex sharing is possible in unindexed meshes
+
+	unsigned int *indices = get_index_data();
+	assert(indices);
+
+	int idxnum = get_index_count();
+	int nnverts = idxnum;
+
+	nverts = nnverts;
+
+	for(int i=0; i<NUM_MESH_ATTR; i++) {
+		if(!has_attrib(i)) continue;
+
+		const float *srcbuf = get_attrib_data(i);
+
+		float *tmpbuf = new float[nnverts * vattr[i].nelem];
+		float *dstptr = tmpbuf;
+		for(int j=0; j<idxnum; j++) {
+			unsigned int idx = indices[j];
+			const float *srcptr = srcbuf + idx * vattr[i].nelem;
+
+			for(int k=0; k<vattr[i].nelem; k++) {
+				*dstptr++ = *srcptr++;
+			}
+		}
+		set_attrib_data(i, vattr[i].nelem, nnverts, tmpbuf);
+		delete [] tmpbuf;
+	}
+
+	ibo_valid = false;
+	idata_valid = false;
+	idata.clear();
+
+	nfaces = idxnum / 3;
+}
+
+void Mesh::calc_face_normals()
+{
+	const Vec3 *varr = (Vec3*)get_attrib_data(MESH_ATTR_VERTEX);
+	Vec3 *narr = (Vec3*)get_attrib_data(MESH_ATTR_NORMAL);
+	if(!varr) {
+		return;
+	}
+
+	if(is_indexed()) {
+		const unsigned int *idxarr = get_index_data();
+
+		for(unsigned int i=0; i<nfaces; i++) {
+			Triangle face(i, varr, idxarr);
+			face.calc_normal();
+
+			for(int j=0; j<3; j++) {
+				unsigned int idx = *idxarr++;
+				narr[idx] = face.normal;
+			}
+		}
+	} else {
+		// non-indexed
+		int nfaces = nverts / 3;
+
+		for(int i=0; i<nfaces; i++) {
+			Triangle face(varr[0], varr[1], varr[2]);
+			face.calc_normal();
+
+			narr[0] = narr[1] = narr[2] = face.normal;
+			varr += vattr[MESH_ATTR_VERTEX].nelem;
+			narr += vattr[MESH_ATTR_NORMAL].nelem;
+		}
+	}
+}
+
 /*
 int Mesh::add_bone(XFormNode *bone)
 {

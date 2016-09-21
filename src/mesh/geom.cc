@@ -244,6 +244,7 @@ bool Plane::intersect(const Ray &ray, HitPoint *hit) const
 		Vec3 ptdir = pt - ray.origin;
 		float t = dot(normal, ptdir) / ndotdir;
 
+		hit->dist = t;
 		hit->pos = ray.origin + ray.dir * t;
 		hit->normal = normal;
 		hit->obj = this;

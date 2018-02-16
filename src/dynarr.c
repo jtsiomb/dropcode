@@ -70,6 +70,11 @@ int dynarr_size(void *da)
 }
 
 
+void *dynarr_clear(void *da)
+{
+	return dynarr_resize(da, 0);
+}
+
 /* stack semantics */
 void *dynarr_push(void *da, void *item)
 {

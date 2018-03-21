@@ -243,7 +243,7 @@ public:
 	bool dump(const char *fname) const;
 	bool dump(FILE *fp) const;
 	bool dump_obj(const char *fname) const;
-	bool dump_obj(FILE *fp) const;
+	bool dump_obj(FILE *fp, int voffs = 0) const;
 };
 
 #endif	// MESH_H_

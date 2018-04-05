@@ -131,3 +131,10 @@ void *dynarr_pop(void *da)
 
 	return da;
 }
+
+void *dynarr_finalize(void *da)
+{
+	struct arrdesc *desc = DESC(da);
+	memmove(desc, da, desc->bufsz);
+	return desc;
+}

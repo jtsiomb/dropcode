@@ -26,7 +26,11 @@ void *dynarr_alloc(int elem, int szelem);
 void dynarr_free(void *da);
 void *dynarr_resize(void *da, int elem);
 
+/* dynarr_empty returns non-zero if the array is empty
+ * Complexity: O(1) */
 int dynarr_empty(void *da);
+/* dynarr_size returns the number of elements in the array
+ * Complexity: O(1) */
 int dynarr_size(void *da);
 
 void *dynarr_clear(void *da);
@@ -35,6 +39,13 @@ void *dynarr_clear(void *da);
 void *dynarr_push(void *da, void *item);
 void *dynarr_pop(void *da);
 
+/* Finalize the array. No more resizing is possible after this call.
+ * Use free() instead of dynarr_free() to deallocate a finalized array.
+ * Returns pointer to the finalized array.
+ * dynarr_finalize can't fail.
+ * Complexity: O(n)
+ */
+void *dynarr_finalize(void *da);
 
 /* helper macros */
 #define DYNARR_RESIZE(da, n) \

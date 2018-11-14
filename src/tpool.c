@@ -37,9 +37,16 @@ struct work_item {
 	struct work_item *next;
 };
 
+struct thread_data {
+	int id;
+	struct thread_pool *pool;
+};
+
 struct thread_pool {
 	pthread_t *threads;
+	struct thread_data *tdata;
 	int num_threads;
+	pthread_key_t idkey;
 
 	int qsize;
 	struct work_item *workq, *workq_tail;
@@ -80,6 +87,9 @@ struct thread_pool *tpool_create(int num_threads)
 	pthread_mutex_init(&tpool->workq_mutex, 0);
 	pthread_cond_init(&tpool->workq_condvar, 0);
 	pthread_cond_init(&tpool->done_condvar, 0);
+	pthread_key_create(&tpool->idkey, 0);
+
+	pthread_setspecific(tpool->idkey, (void*)0xffffffff);
 
 #if !defined(WIN32) && !defined(__WIN32__)
 	tpool->wait_pipe[0] = tpool->wait_pipe[1] = -1;
@@ -94,8 +104,17 @@ struct thread_pool *tpool_create(int num_threads)
 		free(tpool);
 		return 0;
 	}
+	if(!(tpool->tdata = malloc(num_threads * sizeof *tpool->tdata))) {
+		free(tpool->threads);
+		free(tpool);
+		return 0;
+	}
+
 	for(i=0; i<num_threads; i++) {
-		if(pthread_create(tpool->threads + i, 0, thread_func, tpool) == -1) {
+		tpool->tdata[i].id = i;
+		tpool->tdata[i].pool = tpool;
+
+		if(pthread_create(tpool->threads + i, 0, thread_func, tpool->tdata + i) == -1) {
 			/*tpool->threads[i] = 0;*/
 			tpool_destroy(tpool);
 			return 0;
@@ -115,17 +134,13 @@ void tpool_destroy(struct thread_pool *tpool)
 	pthread_cond_broadcast(&tpool->workq_condvar);
 
 	if(tpool->threads) {
-		printf("thread_pool: waiting for %d worker threads to stop ", tpool->num_threads);
-		fflush(stdout);
-
 		for(i=0; i<tpool->num_threads; i++) {
 			pthread_join(tpool->threads[i], 0);
-			putchar('.');
-			fflush(stdout);
 		}
 		putchar('\n');
 		free(tpool->threads);
 	}
+	free(tpool->tdata);
 
 	/* also wake up anyone waiting on the wait* calls */
 	tpool->nactive = 0;
@@ -135,6 +150,7 @@ void tpool_destroy(struct thread_pool *tpool)
 	pthread_mutex_destroy(&tpool->workq_mutex);
 	pthread_cond_destroy(&tpool->workq_condvar);
 	pthread_cond_destroy(&tpool->done_condvar);
+	pthread_key_delete(tpool->idkey);
 
 #if defined(WIN32) || defined(__WIN32__)
 	if(tpool->wait_event) {
@@ -351,7 +367,10 @@ static void send_done_event(struct thread_pool *tpool)
 
 static void *thread_func(void *args)
 {
-	struct thread_pool *tpool = args;
+	struct thread_data *tdata = args;
+	struct thread_pool *tpool = tdata->pool;
+
+	pthread_setspecific(tpool->idkey, (void*)(intptr_t)tdata->id);
 
 	pthread_mutex_lock(&tpool->workq_mutex);
 	while(!tpool->should_quit) {
@@ -387,6 +406,16 @@ static void *thread_func(void *args)
 	pthread_mutex_unlock(&tpool->workq_mutex);
 
 	return 0;
+}
+
+
+int tpool_thread_id(struct thread_pool *tpool)
+{
+	int id = (intptr_t)pthread_getspecific(tpool->idkey);
+	if(id >= tpool->num_threads) {
+		return -1;
+	}
+	return id;
 }
 
 

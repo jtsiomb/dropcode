@@ -68,6 +68,12 @@ int tpool_get_wait_fd(struct thread_pool *tpool);
  */
 void *tpool_get_wait_handle(struct thread_pool *tpool);
 
+/* When called by a work/done callback, it returns the thread number executing
+ * it. From the main thread it returns -1.
+ */
+int tpool_thread_id(struct thread_pool *tpool);
+
+
 /* returns the number of processors on the system.
  * individual cores in multi-core processors are counted as processors.
  */

@@ -24,6 +24,7 @@ license.
  - sdr.h/sdr.c: low-level OpenGL shader program helpers
  - opengl.h: OpenGL includes for different platrforms
  - mesh/: elaborate mesh class, procedural mesh generators, and bounding volume geometries.
+ - cmesh/: port of mesh to C (currently largely untested)
  - sanegl.h/sanegl.c: immediate mode and matrix stack calls for OpenGL ES2
  - curve.h/curve.cc: hermite/bspline curve class
  - timer.h/timer.c: cross-platform high-resolution timing functions

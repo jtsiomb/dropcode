@@ -372,6 +372,7 @@ void Mesh::vertex(float x, float y, float z)
 			}
 		}
 		vattr[i].vbo_valid = false;
+		vattr[i].data_valid = true;
 	}
 
 	if(idata_valid) {
@@ -383,35 +384,36 @@ void Mesh::vertex(float x, float y, float z)
 void Mesh::normal(float nx, float ny, float nz)
 {
 	cur_val[MESH_ATTR_NORMAL] = Vec4(nx, ny, nz, 1.0f);
-	vattr[MESH_ATTR_NORMAL].data_valid = true;
 	vattr[MESH_ATTR_NORMAL].nelem = 3;
 }
 
 void Mesh::tangent(float tx, float ty, float tz)
 {
 	cur_val[MESH_ATTR_TANGENT] = Vec4(tx, ty, tz, 1.0f);
-	vattr[MESH_ATTR_TANGENT].data_valid = true;
 	vattr[MESH_ATTR_TANGENT].nelem = 3;
 }
 
 void Mesh::texcoord(float u, float v, float w)
 {
 	cur_val[MESH_ATTR_TEXCOORD] = Vec4(u, v, w, 1.0f);
-	vattr[MESH_ATTR_TEXCOORD].data_valid = true;
 	vattr[MESH_ATTR_TEXCOORD].nelem = 3;
+}
+
+void Mesh::texcoord2(float u, float v, float w)
+{
+	cu_val[MESH_ATTR_TEXCOORD2] = Vec4(u, v, w, 1.0f);
+	vattr[MESH_ATTR_TEXCOORD2].nelem = 3;
 }
 
 void Mesh::boneweights(float w1, float w2, float w3, float w4)
 {
 	cur_val[MESH_ATTR_BONEWEIGHTS] = Vec4(w1, w2, w3, w4);
-	vattr[MESH_ATTR_BONEWEIGHTS].data_valid = true;
 	vattr[MESH_ATTR_BONEWEIGHTS].nelem = 4;
 }
 
 void Mesh::boneidx(int idx1, int idx2, int idx3, int idx4)
 {
 	cur_val[MESH_ATTR_BONEIDX] = Vec4(idx1, idx2, idx3, idx4);
-	vattr[MESH_ATTR_BONEIDX].data_valid = true;
 	vattr[MESH_ATTR_BONEIDX].nelem = 4;
 }
 

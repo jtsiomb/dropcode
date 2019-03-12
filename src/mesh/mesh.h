@@ -169,6 +169,7 @@ public:
 	void normal(float nx, float ny, float nz);
 	void tangent(float tx, float ty, float tz);
 	void texcoord(float u, float v, float w);
+	void texcoord2(float u, float v, float w);
 	void boneweights(float w1, float w2, float w3, float w4);
 	void boneidx(int idx1, int idx2, int idx3, int idx4);
 

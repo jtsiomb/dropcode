@@ -3,8 +3,91 @@
 #include <ctype.h>
 #include <assert.h>
 #include "cmesh.h"
+
+#ifdef USE_ASSIMP
+#include <assimp/cimport.h>
+#include <assimp/postprocess.h>
+#include <assimp/mesh.h>
+#include <assimp/scene.h>
+#include <assimp/types.h>
+#else
 #include "dynarr.h"
 #include "rbtree.h"
+#endif
+
+
+#ifdef USE_ASSIMP
+
+static int add_mesh(struct cmesh *mesh, struct aiMesh *aimesh);
+
+#define AIPPFLAGS \
+	(aiProcess_JoinIdenticalVertices | aiProcess_PreTransformVertices | \
+	 aiProcess_Triangulate | aiProcess_SortByPType | aiProcess_FlipUVs)
+
+int cmesh_load(struct cmesh *mesh, const char *fname)
+{
+	int i;
+	const struct aiScene *aiscn;
+
+	if(!(aiscn = aiImportFile(fname, AIPPFLAGS))) {
+		fprintf(stderr, "failed to open mesh file: %s\n", fname);
+		return -1;
+	}
+
+	for(i=0; i<(int)aiscn->mNumMeshes; i++) {
+		add_mesh(mesh, aiscn->mMeshes[i]);
+	}
+
+	aiReleaseImport(aiscn);
+	return 0;
+}
+
+static int add_mesh(struct cmesh *mesh, struct aiMesh *aim)
+{
+	int i, j, voffs, foffs;
+
+	voffs = cmesh_attrib_count(mesh, CMESH_ATTR_VERTEX);
+	foffs = cmesh_poly_count(mesh);
+
+	for(i=0; i<aim->mNumVertices; i++) {
+		struct aiVector3D *v = aim->mVertices + i;
+		cmesh_push_attrib3f(mesh, CMESH_ATTR_VERTEX, v->x, v->y, v->z);
+
+		if(aim->mNormals) {
+			v = aim->mNormals + i;
+			cmesh_push_attrib3f(mesh, CMESH_ATTR_NORMAL, v->x, v->y, v->z);
+		}
+		if(aim->mTangents) {
+			v = aim->mTangents + i;
+			cmesh_push_attrib3f(mesh, CMESH_ATTR_TANGENT, v->x, v->y, v->z);
+		}
+		if(aim->mColors[0]) {
+			struct aiColor4D *col = aim->mColors[0] + i;
+			cmesh_push_attrib4f(mesh, CMESH_ATTR_COLOR, col->r, col->g, col->b, col->a);
+		}
+		if(aim->mTextureCoords[0]) {
+			v = aim->mTextureCoords[0] + i;
+			cmesh_push_attrib2f(mesh, CMESH_ATTR_TEXCOORD, v->x, v->y);
+		}
+		if(aim->mTextureCoords[1]) {
+			v = aim->mTextureCoords[1] + i;
+			cmesh_push_attrib2f(mesh, CMESH_ATTR_TEXCOORD2, v->x, v->y);
+		}
+	}
+
+	if(aim->mFaces) {
+		for(i=0; i<aim->mNumFaces; i++) {
+			assert(aim->mFaces[i].mNumIndices == 3);
+			for(j=0; j<3; j++) {
+				cmesh_push_index(mesh, aim->mFaces[i].mIndices[j] + voffs);
+			}
+		}
+		cmesh_submesh(mesh, aim->mName.data, foffs, aim->mNumFaces);
+	}
+	return 0;
+}
+
+#else
 
 struct vertex_pos {
 	float x, y, z;
@@ -312,3 +395,4 @@ static void free_rbnode_key(struct rbnode *n, void *cls)
 {
 	free(n->key);
 }
+#endif

@@ -1159,7 +1159,7 @@ void cmesh_draw_submesh(struct cmesh *cm, int subidx)
 	while(sm && subidx-- > 0) {
 		sm = sm->next;
 	}
-	if(!cm->ibo_valid || !sm) return;
+	if(!sm) return;
 
 	if(sm->icount) {
 		cmesh_draw_range(cm, sm->istart, sm->icount);

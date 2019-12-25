@@ -34,6 +34,7 @@ license.
  - logger.h/logger.c: message logging of various types and multiple log targets
  - dynarr.h/dynarr.c: C dynamic/resizable array
  - dos/: graphics, input, and timer code for protected mode DOS programs (watcom/dos4gw)
+ - md5.h/md5.c: MD5 message digest computation
 
 ## Dependencies
 

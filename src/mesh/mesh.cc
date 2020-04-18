@@ -401,7 +401,7 @@ void Mesh::texcoord(float u, float v, float w)
 
 void Mesh::texcoord2(float u, float v, float w)
 {
-	cu_val[MESH_ATTR_TEXCOORD2] = Vec4(u, v, w, 1.0f);
+	cur_val[MESH_ATTR_TEXCOORD2] = Vec4(u, v, w, 1.0f);
 	vattr[MESH_ATTR_TEXCOORD2].nelem = 3;
 }
 

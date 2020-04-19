@@ -138,10 +138,14 @@ void Mesh::clear()
 		vattr[i].nelem = 0;
 		vattr[i].vbo_valid = false;
 		vattr[i].data_valid = false;
+		vattr[i].vbo_dirty_start = vattr[i].vbo_dirty_size = 0;
 		//vattr[i].sdr_loc = -1;
+		vattr[i].usage = GL_STATIC_DRAW;
 		vattr[i].data.clear();
 	}
 	ibo_valid = idata_valid = false;
+	ibo_dirty_start = ibo_dirty_size = 0;
+	ibo_usage = GL_STATIC_DRAW;
 	idata.clear();
 
 	wire_ibo_valid = false;
@@ -165,28 +169,41 @@ float *Mesh::set_attrib_data(int attrib, int nelem, unsigned int num, const floa
 	}
 	nverts = num;
 
-	vattr[attrib].data.clear();
-	vattr[attrib].nelem = nelem;
-	vattr[attrib].data.resize(num * nelem);
+	unsigned int newsz = num * nelem;
+	if(newsz != vattr[attrib].data.size()) {
+		vattr[attrib].data.clear();
+		vattr[attrib].nelem = nelem;
+		vattr[attrib].data.resize(newsz);
+		vattr[attrib].vbo_valid = false;
+	}
 
 	if(data) {
-		memcpy(&vattr[attrib].data[0], data, num * nelem * sizeof *data);
+		memcpy(&vattr[attrib].data[0], data, newsz * sizeof *data);
 	}
 
 	vattr[attrib].data_valid = true;
-	vattr[attrib].vbo_valid = false;
+	vattr[attrib].vbo_dirty_start = 0;
+	vattr[attrib].vbo_dirty_size = newsz;
 	return &vattr[attrib].data[0];
 }
 
 float *Mesh::get_attrib_data(int attrib)
+{
+	return get_attrib_data(attrib, 0, nverts);
+}
+
+float *Mesh::get_attrib_data(int attrib, int vidx, int vcount)
 {
 	if(attrib < 0 || attrib >= NUM_MESH_ATTR) {
 		fprintf(stderr, "%s: invalid attrib: %d\n", __FUNCTION__, attrib);
 		return 0;
 	}
 
-	vattr[attrib].vbo_valid = false;
-	return (float*)((const Mesh*)this)->get_attrib_data(attrib);
+	int nelem = vattr[attrib].nelem;
+	vattr[attrib].vbo_dirty_start = vidx * nelem;
+	vattr[attrib].vbo_dirty_size = vcount * nelem;
+
+	return (float*)((const Mesh*)this)->get_attrib_data(attrib) + vidx * nelem;
 }
 
 const float *Mesh::get_attrib_data(int attrib) const
@@ -224,9 +241,8 @@ const float *Mesh::get_attrib_data(int attrib) const
 
 void Mesh::set_attrib(int attrib, int idx, const Vec4 &v)
 {
-	float *data = get_attrib_data(attrib);
+	float *data = get_attrib_data(attrib, idx, 1);
 	if(data) {
-		data += idx * vattr[attrib].nelem;
 		for(int i=0; i<vattr[attrib].nelem; i++) {
 			data[i] = v[i];
 		}
@@ -251,33 +267,42 @@ int Mesh::get_attrib_count(int attrib) const
 	return has_attrib(attrib) ? nverts : 0;
 }
 
+void Mesh::set_attrib_usage(int attrib, unsigned int usage)
+{
+	vattr[attrib].usage = usage;
+}
 
 unsigned int *Mesh::set_index_data(int num, const unsigned int *indices)
 {
 	int nidx = nfaces * 3;
-	if(nidx && num != nidx) {
-		fprintf(stderr, "%s: index count mismatch (%d instead of %d)\n", __FUNCTION__, num, nidx);
-		return 0;
+	if(num != nidx) {
+		nfaces = num / 3;
+		idata.clear();
+		idata.resize(num);
+		ibo_valid = false;
 	}
-	nfaces = num / 3;
-
-	idata.clear();
-	idata.resize(num);
 
 	if(indices) {
 		memcpy(&idata[0], indices, num * sizeof *indices);
 	}
 
 	idata_valid = true;
-	ibo_valid = false;
+	ibo_dirty_start = 0;
+	ibo_dirty_size = num;
 
 	return &idata[0];
 }
 
 unsigned int *Mesh::get_index_data()
 {
-	ibo_valid = false;
-	return (unsigned int*)((const Mesh*)this)->get_index_data();
+	return get_index_data(0, nfaces * 3);
+}
+
+unsigned int *Mesh::get_index_data(int istart, int icount)
+{
+	ibo_dirty_start = istart;
+	ibo_dirty_size = icount;
+	return (unsigned int*)((const Mesh*)this->get_index_data()) + istart;
 }
 
 const unsigned int *Mesh::get_index_data() const
@@ -312,6 +337,11 @@ const unsigned int *Mesh::get_index_data() const
 int Mesh::get_index_count() const
 {
 	return nfaces * 3;
+}
+
+void Mesh::set_index_usage(unsigned int usage)
+{
+	ibo_usage = usage;
 }
 
 void Mesh::append(const Mesh &mesh)
@@ -1248,21 +1278,48 @@ void Mesh::calc_bsph()
 
 void Mesh::update_buffers()
 {
+	int upd_count = 0;
+
 	for(int i=0; i<NUM_MESH_ATTR; i++) {
-		if(has_attrib(i) && !vattr[i].vbo_valid) {
+		if(has_attrib(i)) {
+			if(!vattr[i].vbo_dirty_size) continue;
+
 			glBindBuffer(GL_ARRAY_BUFFER, vattr[i].vbo);
-			glBufferData(GL_ARRAY_BUFFER, nverts * vattr[i].nelem * sizeof(float), &vattr[i].data[0], GL_STATIC_DRAW);
-			vattr[i].vbo_valid = true;
+
+			if(!vattr[i].vbo_valid) {
+				glBufferData(GL_ARRAY_BUFFER, nverts * vattr[i].nelem * sizeof(float),
+						&vattr[i].data[0], vattr[i].usage);
+				vattr[i].vbo_valid = true;
+				vattr[i].vbo_dirty_size = 0;
+			} else {
+				int first = vattr[i].vbo_dirty_start;
+				glBufferSubData(GL_ARRAY_BUFFER, first, vattr[i].vbo_dirty_size * sizeof(float),
+						&vattr[i].data[first]);
+				vattr[i].vbo_dirty_size = 0;
+			}
+			upd_count++;
 		}
 	}
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	if(idata_valid && !ibo_valid) {
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, nfaces * 3 * sizeof(unsigned int), &idata[0], GL_STATIC_DRAW);
-		ibo_valid = true;
+	if(upd_count) glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	if(idata_valid) {
+		if(!ibo_valid || ibo_dirty_size) {
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+
+			if(!ibo_valid) {
+				glBufferData(GL_ELEMENT_ARRAY_BUFFER, nfaces * 3 * sizeof(unsigned int),
+						&idata[0], ibo_usage);
+				ibo_valid = true;
+				ibo_dirty_size = 0;
+			} else {
+				glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, ibo_dirty_start,
+						ibo_dirty_size, &idata[ibo_dirty_start]);
+				ibo_dirty_size = 0;
+			}
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		}
 	}
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 void Mesh::update_wire_ibo()

@@ -74,9 +74,12 @@ private:
 		int nelem;					// number of elements per attribute range: [1, 4]
 		std::vector<float> data;
 		unsigned int vbo;
-		mutable bool vbo_valid;		// if this is false, the vbo needs updating from the data
+		mutable bool vbo_valid;		// if this is false, the vbo needs to be re-created
 		mutable bool data_valid;	// if this is false, the data needs to be pulled from the vbo
+		// dirty region (in floats) for next vbo update, !size means not dirty
+		mutable int vbo_dirty_start, vbo_dirty_size;
 		//int sdr_loc;
+		unsigned int usage;		// VBO usage
 	} vattr[NUM_MESH_ATTR];
 
 	static int global_sdr_loc[NUM_MESH_ATTR];
@@ -88,6 +91,8 @@ private:
 	unsigned int ibo;
 	mutable bool ibo_valid;
 	mutable bool idata_valid;
+	mutable int ibo_dirty_start, ibo_dirty_size;	// region in unsigned ints
+	unsigned int ibo_usage;
 
 	// index buffer object for wireframe rendering (constructed on demand)
 	unsigned int wire_ibo;
@@ -147,6 +152,8 @@ public:
 	// if vdata == 0, space is just allocated
 	float *set_attrib_data(int attrib, int nelem, unsigned int num, const float *vdata = 0); // invalidates vbo
 	float *get_attrib_data(int attrib);	// invalidates vbo
+	// get pointer to a range inside the attribute data, only this range gets invalidated
+	float *get_attrib_data(int attrib, int vstart, int vcount);
 	const float *get_attrib_data(int attrib) const;
 
 	// simple access to any particular attribute
@@ -155,12 +162,18 @@ public:
 
 	int get_attrib_count(int attrib) const;
 
+	void set_attrib_usage(int attrib, unsigned int usage);
+
 	// ... same for index data
 	unsigned int *set_index_data(int num, const unsigned int *indices = 0); // invalidates ibo
 	unsigned int *get_index_data();	// invalidates ibo
+	// get pointer to a range inside the index data, only this range gets invalidated
+	unsigned int *get_index_data(int istart, int icount);
 	const unsigned int *get_index_data() const;
 
 	int get_index_count() const;
+
+	void set_index_usage(unsigned int usage);
 
 	void append(const Mesh &mesh);
 

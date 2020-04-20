@@ -302,7 +302,7 @@ unsigned int *Mesh::get_index_data(int istart, int icount)
 {
 	ibo_dirty_start = istart;
 	ibo_dirty_size = icount;
-	return (unsigned int*)((const Mesh*)this->get_index_data()) + istart;
+	return (unsigned int*)(((const Mesh*)this)->get_index_data()) + istart;
 }
 
 const unsigned int *Mesh::get_index_data() const
@@ -609,13 +609,14 @@ void Mesh::calc_face_normals()
 
 	if(is_indexed()) {
 		const unsigned int *idxarr = get_index_data();
+		const unsigned int *idxptr = idxarr;
 
 		for(unsigned int i=0; i<nfaces; i++) {
 			Triangle face(i, varr, idxarr);
 			face.calc_normal();
 
 			for(int j=0; j<3; j++) {
-				unsigned int idx = *idxarr++;
+				unsigned int idx = *idxptr++;
 				narr[idx] = face.normal;
 			}
 		}

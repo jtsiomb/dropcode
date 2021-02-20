@@ -1126,11 +1126,21 @@ static int pre_draw(struct cmesh *cm)
 
 void cmesh_draw(struct cmesh *cm)
 {
-	if(cm->ibo_valid) {
-		cmesh_draw_range(cm, 0, cm->nfaces * 3);
-	} else {
-		cmesh_draw_range(cm, 0, cm->nverts);
+	int cur_sdr;
+
+	if((cur_sdr = pre_draw(cm)) == -1) {
+		return;
 	}
+
+	if(cm->ibo_valid) {
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cm->ibo);
+		glDrawElements(GL_TRIANGLES, cm->nfaces * 3, GL_UNSIGNED_INT, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	} else {
+		glDrawArrays(GL_TRIANGLES, 0, cm->nverts);
+	}
+
+	post_draw(cm, cur_sdr);
 }
 
 void cmesh_draw_range(struct cmesh *cm, int start, int count)

@@ -103,11 +103,11 @@ void glfb_display(void)
 
 	glBegin(GL_TRIANGLES);
 	glTexCoord2f(0, tex_sy * 2.0f);
-	glVertex2f(-1, -1);
-	glTexCoord2f(tex_sx * 2.0f, tex_sy * 2.0f);
-	glVertex2f(3, -1);
+	glVertex2f(-1, -3);
+	glTexCoord2f(tex_sx * 2.0f, 0);
+	glVertex2f(3, 1);
 	glTexCoord2f(0, 0);
-	glVertex2f(-1, 3);
+	glVertex2f(-1, 1);
 	glEnd();
 }
 

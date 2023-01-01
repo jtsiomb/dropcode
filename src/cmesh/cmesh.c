@@ -537,6 +537,7 @@ unsigned int *cmesh_set_index(struct cmesh *cm, int num, const unsigned int *ind
 	free(cm->idata);
 	cm->idata = tmp;
 	cm->icount = num;
+	cm->nfaces = num / 3;
 	cm->idata_valid = 1;
 	cm->ibo_valid = 0;
 	return tmp;

@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <limits.h>
 #include <float.h>
 #include <assert.h>
 #include "opengl.h"
 #include "cmesh.h"
-#include "logger.h"
 
 
 struct cmesh_vattrib {
@@ -61,9 +61,9 @@ struct cmesh {
 };
 
 
-static int clone(struct cmesh *cmdest, struct cmesh *cmsrc, struct submesh *sub);
-static int pre_draw(struct cmesh *cm);
-static void post_draw(struct cmesh *cm, int cur_sdr);
+static int clone(struct cmesh *cmdest, const struct cmesh *cmsrc, struct submesh *sub);
+static int pre_draw(const struct cmesh *cm);
+static void post_draw(const struct cmesh *cm, int cur_sdr);
 static void update_buffers(struct cmesh *cm);
 static void update_wire_ibo(struct cmesh *cm);
 static void calc_aabb(struct cmesh *cm);
@@ -176,12 +176,12 @@ void cmesh_clear(struct cmesh *cm)
 	cmesh_clear_submeshes(cm);
 }
 
-int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc)
+int cmesh_clone(struct cmesh *cmdest, const struct cmesh *cmsrc)
 {
 	return clone(cmdest, cmsrc, 0);
 }
 
-static int clone(struct cmesh *cmdest, struct cmesh *cmsrc, struct submesh *sub)
+static int clone(struct cmesh *cmdest, const struct cmesh *cmsrc, struct submesh *sub)
 {
 	int i, nelem, vstart, vcount, istart, icount;
 	char *srcname, *name = 0;
@@ -240,7 +240,8 @@ static int clone(struct cmesh *cmdest, struct cmesh *cmsrc, struct submesh *sub)
 		free(cmdest->vattr[i].data);
 
 		if(cmesh_has_attrib(cmsrc, i)) {
-			cmesh_attrib(cmsrc, i);	/* force validation of the actual data on the source mesh */
+			/* force validation of the actual data on the source mesh */
+			cmesh_attrib((struct cmesh*)cmsrc, i);
 
 			nelem = cmsrc->vattr[i].nelem;
 			cmdest->vattr[i].nelem = nelem;
@@ -256,7 +257,8 @@ static int clone(struct cmesh *cmdest, struct cmesh *cmsrc, struct submesh *sub)
 	}
 
 	if(cmesh_indexed(cmsrc)) {
-		cmesh_index(cmsrc);	/* force validation .... */
+		/* force validation .... */
+		cmesh_index((struct cmesh*)cmsrc);
 
 		cmdest->idata = iarr;
 		cmdest->icount = icount;
@@ -334,12 +336,12 @@ int cmesh_set_name(struct cmesh *cm, const char *name)
 	return 0;
 }
 
-const char *cmesh_name(struct cmesh *cm)
+const char *cmesh_name(const struct cmesh *cm)
 {
 	return cm->name;
 }
 
-int cmesh_has_attrib(struct cmesh *cm, int attr)
+int cmesh_has_attrib(const struct cmesh *cm, int attr)
 {
 	if(attr < 0 || attr >= CMESH_NUM_ATTR) {
 		return 0;
@@ -347,7 +349,7 @@ int cmesh_has_attrib(struct cmesh *cm, int attr)
 	return cm->vattr[attr].vbo_valid | cm->vattr[attr].data_valid;
 }
 
-int cmesh_indexed(struct cmesh *cm)
+int cmesh_indexed(const struct cmesh *cm)
 {
 	return cm->ibo_valid | cm->idata_valid;
 }
@@ -394,7 +396,7 @@ float *cmesh_attrib(struct cmesh *cm, int attr)
 	return (float*)cmesh_attrib_ro(cm, attr);
 }
 
-const float *cmesh_attrib_ro(struct cmesh *cm, int attr)
+const float *cmesh_attrib_ro(const struct cmesh *cm, int attr)
 {
 	void *tmp;
 	int nelem;
@@ -407,23 +409,25 @@ const float *cmesh_attrib_ro(struct cmesh *cm, int attr)
 #if GL_ES_VERSION_2_0
 		return 0;
 #else
-		if(!cm->vattr[attr].vbo_valid) {
+		struct cmesh *m = (struct cmesh*)cm;
+
+		if(!m->vattr[attr].vbo_valid) {
 			return 0;
 		}
 
 		/* local data copy unavailable, grab the data from the vbo */
-		nelem = cm->vattr[attr].nelem;
-		if(!(cm->vattr[attr].data = malloc(cm->nverts * nelem * sizeof(float)))) {
+		nelem = m->vattr[attr].nelem;
+		if(!(m->vattr[attr].data = malloc(m->nverts * nelem * sizeof(float)))) {
 			return 0;
 		}
-		cm->vattr[attr].count = cm->nverts * nelem;
+		m->vattr[attr].count = m->nverts * nelem;
 
-		glBindBuffer(GL_ARRAY_BUFFER, cm->vattr[attr].vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, m->vattr[attr].vbo);
 		tmp = glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
-		memcpy(cm->vattr[attr].data, tmp, cm->nverts * nelem * sizeof(float));
+		memcpy(m->vattr[attr].data, tmp, m->nverts * nelem * sizeof(float));
 		glUnmapBuffer(GL_ARRAY_BUFFER);
 
-		cm->vattr[attr].data_valid = 1;
+		m->vattr[attr].data_valid = 1;
 #endif
 	}
 	return cm->vattr[attr].data;
@@ -435,13 +439,13 @@ float *cmesh_attrib_at(struct cmesh *cm, int attr, int idx)
 	return vptr ? vptr + idx * cm->vattr[attr].nelem : 0;
 }
 
-const float *cmesh_attrib_at_ro(struct cmesh *cm, int attr, int idx)
+const float *cmesh_attrib_at_ro(const struct cmesh *cm, int attr, int idx)
 {
 	const float *vptr = cmesh_attrib_ro(cm, attr);
 	return vptr ? vptr + idx * cm->vattr[attr].nelem : 0;
 }
 
-int cmesh_attrib_count(struct cmesh *cm, int attr)
+int cmesh_attrib_count(const struct cmesh *cm, int attr)
 {
 	return cmesh_has_attrib(cm, attr) ? cm->nverts : 0;
 }
@@ -549,7 +553,7 @@ unsigned int *cmesh_index(struct cmesh *cm)
 	return (unsigned int*)cmesh_index_ro(cm);
 }
 
-const unsigned int *cmesh_index_ro(struct cmesh *cm)
+const unsigned int *cmesh_index_ro(const struct cmesh *cm)
 {
 	int nidx;
 	unsigned int *tmp;
@@ -558,31 +562,33 @@ const unsigned int *cmesh_index_ro(struct cmesh *cm)
 #if GL_ES_VERSION_2_0
 		return 0;
 #else
-		if(!cm->ibo_valid) {
+		struct cmesh *m = (struct cmesh*)cm;
+
+		if(!m->ibo_valid) {
 			return 0;
 		}
 
 		/* local copy is unavailable, grab the data from the ibo */
-		nidx = cm->nfaces * 3;
-		if(!(tmp = malloc(nidx * sizeof *cm->idata))) {
+		nidx = m->nfaces * 3;
+		if(!(tmp = malloc(nidx * sizeof *m->idata))) {
 			return 0;
 		}
-		free(cm->idata);
-		cm->idata = tmp;
-		cm->icount = nidx;
+		free(m->idata);
+		m->idata = tmp;
+		m->icount = nidx;
 
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cm->ibo);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m->ibo);
 		tmp = glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_READ_ONLY);
-		memcpy(cm->idata, tmp, nidx * sizeof *cm->idata);
+		memcpy(m->idata, tmp, nidx * sizeof *m->idata);
 		glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 
-		cm->idata_valid = 1;
+		m->idata_valid = 1;
 #endif
 	}
 	return cm->idata;
 }
 
-int cmesh_index_count(struct cmesh *cm)
+int cmesh_index_count(const struct cmesh *cm)
 {
 	return cm->nfaces * 3;
 }
@@ -604,7 +610,7 @@ int cmesh_push_index(struct cmesh *cm, unsigned int idx)
 	return 0;
 }
 
-int cmesh_poly_count(struct cmesh *cm)
+int cmesh_poly_count(const struct cmesh *cm)
 {
 	if(cm->nfaces) {
 		return cm->nfaces;
@@ -638,7 +644,7 @@ void cmesh_invalidate_index(struct cmesh *cm)
 	cm->ibo_valid = 0;
 }
 
-int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc)
+int cmesh_append(struct cmesh *cmdest, const struct cmesh *cmsrc)
 {
 	int i, nelem, newsz, origsz, srcsz;
 	float *vptr;
@@ -784,7 +790,7 @@ int cmesh_remove_submesh(struct cmesh *cm, int idx)
 	return 0;
 }
 
-int cmesh_find_submesh(struct cmesh *cm, const char *name)
+int cmesh_find_submesh(const struct cmesh *cm, const char *name)
 {
 	int idx = 0;
 	struct submesh *sm = cm->sublist;
@@ -799,12 +805,12 @@ int cmesh_find_submesh(struct cmesh *cm, const char *name)
 	return -1;
 }
 
-int cmesh_submesh_count(struct cmesh *cm)
+int cmesh_submesh_count(const struct cmesh *cm)
 {
 	return cm->subcount;
 }
 
-static struct submesh *get_submesh(struct cmesh *m, int idx)
+static struct submesh *get_submesh(const struct cmesh *m, int idx)
 {
 	struct submesh *sm = m->sublist;
 	while(sm && --idx >= 0) {
@@ -813,7 +819,7 @@ static struct submesh *get_submesh(struct cmesh *m, int idx)
 	return sm;
 }
 
-int cmesh_clone_submesh(struct cmesh *cmdest, struct cmesh *cm, int subidx)
+int cmesh_clone_submesh(struct cmesh *cmdest, const struct cmesh *cm, int subidx)
 {
 	struct submesh *sub;
 
@@ -1066,13 +1072,13 @@ void cmesh_calc_face_normals(struct cmesh *cm)
 	/* TODO */
 }
 
-static int pre_draw(struct cmesh *cm)
+static int pre_draw(const struct cmesh *cm)
 {
 	int i, loc, cur_sdr;
 
 	glGetIntegerv(GL_CURRENT_PROGRAM, &cur_sdr);
 
-	update_buffers(cm);
+	update_buffers((struct cmesh*)cm);
 
 	if(!cm->vattr[CMESH_ATTR_VERTEX].vbo_valid) {
 		return -1;
@@ -1125,7 +1131,7 @@ static int pre_draw(struct cmesh *cm)
 	return cur_sdr;
 }
 
-void cmesh_draw(struct cmesh *cm)
+void cmesh_draw(const struct cmesh *cm)
 {
 	int cur_sdr;
 
@@ -1144,7 +1150,7 @@ void cmesh_draw(struct cmesh *cm)
 	post_draw(cm, cur_sdr);
 }
 
-void cmesh_draw_range(struct cmesh *cm, int start, int count)
+void cmesh_draw_range(const struct cmesh *cm, int start, int count)
 {
 	int cur_sdr;
 
@@ -1154,7 +1160,7 @@ void cmesh_draw_range(struct cmesh *cm, int start, int count)
 
 	if(cm->ibo_valid) {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cm->ibo);
-		glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, (void*)(start * 4));
+		glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, (void*)(intptr_t)(start * 4));
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	} else {
 		glDrawArrays(GL_TRIANGLES, start, count);
@@ -1163,7 +1169,7 @@ void cmesh_draw_range(struct cmesh *cm, int start, int count)
 	post_draw(cm, cur_sdr);
 }
 
-void cmesh_draw_submesh(struct cmesh *cm, int subidx)
+void cmesh_draw_submesh(const struct cmesh *cm, int subidx)
 {
 	struct submesh *sm = cm->sublist;
 
@@ -1179,7 +1185,7 @@ void cmesh_draw_submesh(struct cmesh *cm, int subidx)
 	}
 }
 
-static void post_draw(struct cmesh *cm, int cur_sdr)
+static void post_draw(const struct cmesh *cm, int cur_sdr)
 {
 	int i;
 
@@ -1211,14 +1217,14 @@ static void post_draw(struct cmesh *cm, int cur_sdr)
 	}
 }
 
-void cmesh_draw_wire(struct cmesh *cm, float linesz)
+void cmesh_draw_wire(const struct cmesh *cm, float linesz)
 {
 	int cur_sdr, nfaces;
 
 	if((cur_sdr = pre_draw(cm)) == -1) {
 		return;
 	}
-	update_wire_ibo(cm);
+	update_wire_ibo((struct cmesh*)cm);
 
 	nfaces = cmesh_poly_count(cm);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cm->wire_ibo);
@@ -1228,7 +1234,7 @@ void cmesh_draw_wire(struct cmesh *cm, float linesz)
 	post_draw(cm, cur_sdr);
 }
 
-void cmesh_draw_vertices(struct cmesh *cm, float ptsz)
+void cmesh_draw_vertices(const struct cmesh *cm, float ptsz)
 {
 	int cur_sdr;
 	if((cur_sdr = pre_draw(cm)) == -1) {
@@ -1243,7 +1249,7 @@ void cmesh_draw_vertices(struct cmesh *cm, float ptsz)
 	post_draw(cm, cur_sdr);
 }
 
-void cmesh_draw_normals(struct cmesh *cm, float len)
+void cmesh_draw_normals(const struct cmesh *cm, float len)
 {
 #ifndef GL_ES_VERSION_2_0
 	int i, cur_sdr, vert_nelem, norm_nelem;
@@ -1287,7 +1293,7 @@ void cmesh_draw_normals(struct cmesh *cm, float len)
 #endif	/* GL_ES_VERSION_2_0 */
 }
 
-void cmesh_draw_tangents(struct cmesh *cm, float len)
+void cmesh_draw_tangents(const struct cmesh *cm, float len)
 {
 #ifndef GL_ES_VERSION_2_0
 	int i, cur_sdr, vert_nelem, tang_nelem;
@@ -1432,10 +1438,10 @@ static void calc_aabb(struct cmesh *cm)
 	cm->aabb_valid = 1;
 }
 
-void cmesh_aabbox(struct cmesh *cm, cgm_vec3 *vmin, cgm_vec3 *vmax)
+void cmesh_aabbox(const struct cmesh *cm, cgm_vec3 *vmin, cgm_vec3 *vmax)
 {
 	if(!cm->aabb_valid) {
-		calc_aabb(cm);
+		calc_aabb((struct cmesh*)cm);
 	}
 	*vmin = cm->aabb_min;
 	*vmax = cm->aabb_max;
@@ -1475,13 +1481,13 @@ static void calc_bsph(struct cmesh *cm)
 	cm->bsph_valid = 1;
 }
 
-float cmesh_bsphere(struct cmesh *cm, cgm_vec3 *center, float *rad)
+float cmesh_bsphere(const struct cmesh *cm, cgm_vec3 *center, float *rad)
 {
 	if(!cm->bsph_valid) {
-		calc_bsph(cm);
+		calc_bsph((struct cmesh*)cm);
 	}
-	*center = cm->bsph_center;
-	*rad = cm->bsph_radius;
+	if(center) *center = cm->bsph_center;
+	if(rad) *rad = cm->bsph_radius;
 	return cm->bsph_radius;
 }
 
@@ -1491,7 +1497,7 @@ void cmesh_texcoord_gen_plane(struct cmesh *cm, cgm_vec3 *norm, cgm_vec3 *tang);
 void cmesh_texcoord_gen_box(struct cmesh *cm);
 void cmesh_texcoord_gen_cylinder(struct cmesh *cm);
 
-int cmesh_dump(struct cmesh *cm, const char *fname)
+int cmesh_dump(const struct cmesh *cm, const char *fname)
 {
 	FILE *fp = fopen(fname, "wb");
 	if(fp) {
@@ -1502,7 +1508,7 @@ int cmesh_dump(struct cmesh *cm, const char *fname)
 	return -1;
 }
 
-int cmesh_dump_file(struct cmesh *cm, FILE *fp)
+int cmesh_dump_file(const struct cmesh *cm, FILE *fp)
 {
 	static const char *label[] = { "pos", "nor", "tan", "tex", "col", "bw", "bid", "tex2" };
 	static const char *elemfmt[] = { 0, " %s(%g)", " %s(%g, %g)", " %s(%g, %g, %g)", " %s(%g, %g, %g, %g)", 0 };
@@ -1543,7 +1549,7 @@ int cmesh_dump_file(struct cmesh *cm, FILE *fp)
 	return 0;
 }
 
-int cmesh_dump_obj(struct cmesh *cm, const char *fname)
+int cmesh_dump_obj(const struct cmesh *cm, const char *fname)
 {
 	FILE *fp = fopen(fname, "wb");
 	if(fp) {
@@ -1557,7 +1563,7 @@ int cmesh_dump_obj(struct cmesh *cm, const char *fname)
 #define HAS_VN	1
 #define HAS_VT	2
 
-int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
+int cmesh_dump_obj_file(const struct cmesh *cm, FILE *fp, int voffs)
 {
 	static const char *fmtstr[] = {" %u", " %u//%u", " %u/%u", " %u/%u/%u"};
 	int i, j, num, nelem;
@@ -1570,7 +1576,7 @@ int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
 
 	nelem = cm->vattr[CMESH_ATTR_VERTEX].nelem;
 	if((num = cm->vattr[CMESH_ATTR_VERTEX].count) != cm->nverts * nelem) {
-		warning_log("vertex array size (%d) != nverts (%d)\n", num, cm->nverts);
+		fprintf(stderr, "vertex array size (%d) != nverts (%d)\n", num, cm->nverts);
 	}
 	for(i=0; i<cm->nverts; i++) {
 		const float *v = cmesh_attrib_at_ro(cm, CMESH_ATTR_VERTEX, i);
@@ -1581,7 +1587,7 @@ int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
 		aflags |= HAS_VN;
 		nelem = cm->vattr[CMESH_ATTR_NORMAL].nelem;
 		if((num = cm->vattr[CMESH_ATTR_NORMAL].count) != cm->nverts * nelem) {
-			warning_log("normal array size (%d) != nverts (%d)\n", num, cm->nverts);
+			fprintf(stderr, "normal array size (%d) != nverts (%d)\n", num, cm->nverts);
 		}
 		for(i=0; i<cm->nverts; i++) {
 			const float *v = cmesh_attrib_at_ro(cm, CMESH_ATTR_NORMAL, i);
@@ -1593,7 +1599,7 @@ int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs)
 		aflags |= HAS_VT;
 		nelem = cm->vattr[CMESH_ATTR_TEXCOORD].nelem;
 		if((num = cm->vattr[CMESH_ATTR_TEXCOORD].count) != cm->nverts * nelem) {
-			warning_log("texcoord array size (%d) != nverts (%d)\n", num, cm->nverts);
+			fprintf(stderr, "texcoord array size (%d) != nverts (%d)\n", num, cm->nverts);
 		}
 		for(i=0; i<cm->nverts; i++) {
 			const float *v = cmesh_attrib_at_ro(cm, CMESH_ATTR_TEXCOORD, i);

@@ -32,13 +32,13 @@ int cmesh_init(struct cmesh *cm);
 void cmesh_destroy(struct cmesh *cm);
 
 void cmesh_clear(struct cmesh *cm);
-int cmesh_clone(struct cmesh *cmdest, struct cmesh *cmsrc);
+int cmesh_clone(struct cmesh *cmdest, const struct cmesh *cmsrc);
 
 int cmesh_set_name(struct cmesh *cm, const char *name);
-const char *cmesh_name(struct cmesh *cm);
+const char *cmesh_name(const struct cmesh *cm);
 
-int cmesh_has_attrib(struct cmesh *cm, int attr);
-int cmesh_indexed(struct cmesh *cm);
+int cmesh_has_attrib(const struct cmesh *cm, int attr);
+int cmesh_indexed(const struct cmesh *cm);
 
 /* vdata can be 0, in which case only memory is allocated
  * returns pointer to the attribute array
@@ -46,10 +46,10 @@ int cmesh_indexed(struct cmesh *cm);
 float *cmesh_set_attrib(struct cmesh *cm, int attr, int nelem, unsigned int num,
 		const float *vdata);
 float *cmesh_attrib(struct cmesh *cm, int attr);			/* invalidates VBO */
-const float *cmesh_attrib_ro(struct cmesh *cm, int attr);	/* doesn't invalidate */
+const float *cmesh_attrib_ro(const struct cmesh *cm, int attr);	/* doesn't invalidate */
 float *cmesh_attrib_at(struct cmesh *cm, int attr, int idx);
-const float *cmesh_attrib_at_ro(struct cmesh *cm, int attr, int idx);
-int cmesh_attrib_count(struct cmesh *cm, int attr);
+const float *cmesh_attrib_at_ro(const struct cmesh *cm, int attr, int idx);
+int cmesh_attrib_count(const struct cmesh *cm, int attr);
 int cmesh_push_attrib(struct cmesh *cm, int attr, float *v);
 int cmesh_push_attrib1f(struct cmesh *cm, int attr, float x);
 int cmesh_push_attrib2f(struct cmesh *cm, int attr, float x, float y);
@@ -61,26 +61,26 @@ int cmesh_push_attrib4f(struct cmesh *cm, int attr, float x, float y, float z, f
  */
 unsigned int *cmesh_set_index(struct cmesh *cm, int num, const unsigned int *indices);
 unsigned int *cmesh_index(struct cmesh *cm);	/* invalidates IBO */
-const unsigned int *cmesh_index_ro(struct cmesh *cm);	/* doesn't invalidate */
-int cmesh_index_count(struct cmesh *cm);
+const unsigned int *cmesh_index_ro(const struct cmesh *cm);	/* doesn't invalidate */
+int cmesh_index_count(const struct cmesh *cm);
 int cmesh_push_index(struct cmesh *cm, unsigned int idx);
 
-int cmesh_poly_count(struct cmesh *cm);
+int cmesh_poly_count(const struct cmesh *cm);
 
 /* attr can be -1 to invalidate all attributes */
 void cmesh_invalidate_vbo(struct cmesh *cm, int attr);
 void cmesh_invalidate_ibo(struct cmesh *cm);
 
-int cmesh_append(struct cmesh *cmdest, struct cmesh *cmsrc);
+int cmesh_append(struct cmesh *cmdest, const struct cmesh *cmsrc);
 
 /* submeshes */
 void cmesh_clear_submeshes(struct cmesh *cm);
 /* a submesh is defined as a consecutive range of faces */
 int cmesh_submesh(struct cmesh *cm, const char *name, int fstart, int fcount);
 int cmesh_remove_submesh(struct cmesh *cm, int idx);
-int cmesh_find_submesh(struct cmesh *cm, const char *name);
-int cmesh_submesh_count(struct cmesh *cm);
-int cmesh_clone_submesh(struct cmesh *cmdest, struct cmesh *cm, int subidx);
+int cmesh_find_submesh(const struct cmesh *cm, const char *name);
+int cmesh_submesh_count(const struct cmesh *cm);
+int cmesh_clone_submesh(struct cmesh *cmdest, const struct cmesh *cm, int subidx);
 
 /* immediate-mode style mesh construction interface */
 int cmesh_vertex(struct cmesh *cm, float x, float y, float z);
@@ -102,22 +102,22 @@ int cmesh_explode(struct cmesh *cm);	/* undo all vertex sharing */
 /* this is only guaranteed to work on an exploded mesh */
 void cmesh_calc_face_normals(struct cmesh *cm);
 
-void cmesh_draw(struct cmesh *cm);
-void cmesh_draw_range(struct cmesh *cm, int start, int count);
-void cmesh_draw_submesh(struct cmesh *cm, int subidx);	/* XXX only for indexed meshes currently */
-void cmesh_draw_wire(struct cmesh *cm, float linesz);
-void cmesh_draw_vertices(struct cmesh *cm, float ptsz);
-void cmesh_draw_normals(struct cmesh *cm, float len);
-void cmesh_draw_tangents(struct cmesh *cm, float len);
+void cmesh_draw(const struct cmesh *cm);
+void cmesh_draw_range(const struct cmesh *cm, int start, int count);
+void cmesh_draw_submesh(const struct cmesh *cm, int subidx);	/* XXX only for indexed meshes currently */
+void cmesh_draw_wire(const struct cmesh *cm, float linesz);
+void cmesh_draw_vertices(const struct cmesh *cm, float ptsz);
+void cmesh_draw_normals(const struct cmesh *cm, float len);
+void cmesh_draw_tangents(const struct cmesh *cm, float len);
 
 /* get the bounding box in local space. The result will be cached and subsequent
  * calls will return the same box. The cache gets invalidated by any functions that
  * can affect the vertex data
  */
-void cmesh_aabbox(struct cmesh *cm, cgm_vec3 *vmin, cgm_vec3 *vmax);
+void cmesh_aabbox(const struct cmesh *cm, cgm_vec3 *vmin, cgm_vec3 *vmax);
 
 /* get the bounding sphere in local space. The result will be cached ... see above */
-float cmesh_bsphere(struct cmesh *cm, cgm_vec3 *center, float *rad);
+float cmesh_bsphere(const struct cmesh *cm, cgm_vec3 *center, float *rad);
 
 /* texture coordinate manipulation */
 void cmesh_texcoord_apply_xform(struct cmesh *cm, float *xform);
@@ -128,10 +128,10 @@ void cmesh_texcoord_gen_cylinder(struct cmesh *cm);
 /* FILE I/O */
 int cmesh_load(struct cmesh *cm, const char *fname);
 
-int cmesh_dump(struct cmesh *cm, const char *fname);
-int cmesh_dump_file(struct cmesh *cm, FILE *fp);
-int cmesh_dump_obj(struct cmesh *cm, const char *fname);
-int cmesh_dump_obj_file(struct cmesh *cm, FILE *fp, int voffs);
+int cmesh_dump(const struct cmesh *cm, const char *fname);
+int cmesh_dump_file(const struct cmesh *cm, FILE *fp);
+int cmesh_dump_obj(const struct cmesh *cm, const char *fname);
+int cmesh_dump_obj_file(const struct cmesh *cm, FILE *fp, int voffs);
 
 
 

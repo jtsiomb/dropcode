@@ -11,7 +11,7 @@
 struct cmesh_vattrib {
 	int nelem;	/* num elements per attribute [1, 4] */
 	float *data;
-	unsigned int count;
+	unsigned int count;	/* number of floats in data */
 	unsigned int vbo;
 	int vbo_valid, data_valid;
 };
@@ -246,7 +246,7 @@ static int clone(struct cmesh *cmdest, const struct cmesh *cmsrc, struct submesh
 			nelem = cmsrc->vattr[i].nelem;
 			cmdest->vattr[i].nelem = nelem;
 			cmdest->vattr[i].data = varr[i];
-			cmdest->vattr[i].count = vcount;
+			cmdest->vattr[i].count = vcount * nelem;
 			vptr = cmsrc->vattr[i].data + vstart * nelem;
 			memcpy(cmdest->vattr[i].data, vptr, vcount * nelem * sizeof(float));
 			cmdest->vattr[i].data_valid = 1;
@@ -448,6 +448,11 @@ const float *cmesh_attrib_at_ro(const struct cmesh *cm, int attr, int idx)
 int cmesh_attrib_count(const struct cmesh *cm, int attr)
 {
 	return cmesh_has_attrib(cm, attr) ? cm->nverts : 0;
+}
+
+int cmesh_attrib_nelem(const struct cmesh *cm, int attr)
+{
+	return cmesh_has_attrib(cm, attr) ? cm->vattr[attr].nelem : 0;
 }
 
 int cmesh_push_attrib(struct cmesh *cm, int attr, float *v)
@@ -664,7 +669,7 @@ int cmesh_append(struct cmesh *cmdest, const struct cmesh *cmsrc)
 			assert(cmdest->vattr[i].nelem == cmsrc->vattr[i].nelem);
 			nelem = cmdest->vattr[i].nelem;
 			origsz = cmdest->nverts * nelem;
-			newsz = cmdest->nverts + cmsrc->nverts * nelem;
+			newsz = (cmdest->nverts + cmsrc->nverts) * nelem;
 
 			if(!(vptr = realloc(cmdest->vattr[i].data, newsz * sizeof *vptr))) {
 				return -1;
@@ -698,6 +703,9 @@ int cmesh_append(struct cmesh *cmdest, const struct cmesh *cmsrc)
 			*iptr++ = cmsrc->idata[i] + idxoffs;
 		}
 	}
+
+	cmdest->nverts += cmsrc->nverts;
+	cmdest->nfaces += cmsrc->nfaces;
 
 	cmdest->wire_ibo_valid = 0;
 	cmdest->aabb_valid = 0;
@@ -833,28 +841,16 @@ int cmesh_clone_submesh(struct cmesh *cmdest, const struct cmesh *cm, int subidx
 /* assemble a complete vertex by adding all the useful attributes */
 int cmesh_vertex(struct cmesh *cm, float x, float y, float z)
 {
-	int i, j;
+	int i;
 
 	cgm_wcons(cm->cur_val + CMESH_ATTR_VERTEX, x, y, z, 1.0f);
 	cm->vattr[CMESH_ATTR_VERTEX].data_valid = 1;
 	cm->vattr[CMESH_ATTR_VERTEX].nelem = 3;
 
 	for(i=0; i<CMESH_NUM_ATTR; i++) {
-		if(cm->vattr[i].data_valid) {
-			int newsz = cm->vattr[i].count + cm->vattr[i].nelem;
-			float *tmp = realloc(cm->vattr[i].data, newsz * sizeof *tmp);
-			if(!tmp) return -1;
-			tmp += cm->vattr[i].count;
-
-			cm->vattr[i].data = tmp;
-			cm->vattr[i].count = newsz;
-
-			for(j=0; j<cm->vattr[i].nelem; j++) {
-				*tmp++ = *(&cm->cur_val[i].x + j);
-			}
+		if(cm->vattr[i].nelem > 0) {
+			cmesh_push_attrib(cm, i, &cm->cur_val[i].x);
 		}
-		cm->vattr[i].vbo_valid = 0;
-		cm->vattr[i].data_valid = 1;
 	}
 
 	if(cm->idata_valid) {
@@ -936,6 +932,10 @@ void cmesh_apply_xform(struct cmesh *cm, float *xform, float *dir_xform)
 	cgm_vec4 v;
 	cgm_vec3 n, t;
 	float *vptr;
+
+	if(!dir_xform) {
+		dir_xform = xform;
+	}
 
 	for(i=0; i<cm->nverts; i++) {
 		if(!(vptr = get_vec4(cm, CMESH_ATTR_VERTEX, i, &v))) {

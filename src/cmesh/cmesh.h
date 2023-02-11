@@ -50,6 +50,7 @@ const float *cmesh_attrib_ro(const struct cmesh *cm, int attr);	/* doesn't inval
 float *cmesh_attrib_at(struct cmesh *cm, int attr, int idx);
 const float *cmesh_attrib_at_ro(const struct cmesh *cm, int attr, int idx);
 int cmesh_attrib_count(const struct cmesh *cm, int attr);
+int cmesh_attrib_nelem(const struct cmesh *cm, int attr);
 int cmesh_push_attrib(struct cmesh *cm, int attr, float *v);
 int cmesh_push_attrib1f(struct cmesh *cm, int attr, float x);
 int cmesh_push_attrib2f(struct cmesh *cm, int attr, float x, float y);

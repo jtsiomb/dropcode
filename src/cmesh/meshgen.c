@@ -285,9 +285,9 @@ void gen_torus(struct cmesh *mesh, float mainrad, float ringrad, int usub, int v
 				*idxarr++ = idx + 1;
 				*idxarr++ = idx + vverts + 1;
 
+				*idxarr++ = idx + vverts;
 				*idxarr++ = idx;
 				*idxarr++ = idx + vverts + 1;
-				*idxarr++ = idx + vverts;
 			}
 
 			v += dv;

@@ -33,7 +33,7 @@ struct cmesh {
 	char *name;
 	unsigned int nverts, nfaces;
 
-	struct submesh *sublist;
+	struct submesh *sublist, *subtail;
 	int subcount;
 
 	/* current value for each attribute for the immediate mode interface */
@@ -319,6 +319,7 @@ static int clone(struct cmesh *cmdest, const struct cmesh *cmsrc, struct submesh
 		}
 
 		cmdest->sublist = head;
+		cmdest->subtail = tail;
 		cmdest->subcount = cmsrc->subcount;
 	}
 
@@ -724,6 +725,7 @@ void cmesh_clear_submeshes(struct cmesh *cm)
 		free(sm);
 	}
 	cm->subcount = 0;
+	cm->subtail = 0;
 }
 
 int cmesh_submesh(struct cmesh *cm, const char *name, int fstart, int fcount)
@@ -763,8 +765,13 @@ int cmesh_submesh(struct cmesh *cm, const char *name, int fstart, int fcount)
 		sm->vcount = fcount * 3;
 	}
 
-	sm->next = cm->sublist;
-	cm->sublist = sm;
+	sm->next = 0;
+	if(cm->sublist) {
+		cm->subtail->next = sm;
+		cm->subtail = sm;
+	} else {
+		cm->sublist = cm->subtail = sm;
+	}
 	cm->subcount++;
 	return 0;
 }
@@ -791,10 +798,18 @@ int cmesh_remove_submesh(struct cmesh *cm, int idx)
 	free(sm->name);
 	free(sm);
 
+	if(cm->subtail == sm) {
+		cm->subtail = prev;
+	}
+
 	cm->subcount--;
 	assert(cm->subcount >= 0);
 
-	cm->sublist = dummy.next;
+	if(!dummy.next) {
+		cm->sublist = cm->subtail = 0;
+	} else {
+		cm->sublist = dummy.next;
+	}
 	return 0;
 }
 
@@ -1568,6 +1583,7 @@ int cmesh_dump_obj_file(const struct cmesh *cm, FILE *fp, int voffs)
 	static const char *fmtstr[] = {" %u", " %u//%u", " %u/%u", " %u/%u/%u"};
 	int i, j, num, nelem;
 	unsigned int aflags = 0;
+	const struct submesh *sub = cm->sublist;
 
 	if(!cmesh_has_attrib(cm, CMESH_ATTR_VERTEX)) {
 		return -1;
@@ -1614,6 +1630,11 @@ int cmesh_dump_obj_file(const struct cmesh *cm, FILE *fp, int voffs)
 		assert(numidx % 3 == 0);
 
 		for(i=0; i<numtri; i++) {
+			if(sub && sub->istart <= *idxptr) {
+				fprintf(fp, "o %s\n", sub->name);
+				sub = sub->next;
+			}
+
 			fputc('f', fp);
 			for(j=0; j<3; j++) {
 				unsigned int idx = *idxptr++ + 1 + voffs;
@@ -1625,6 +1646,11 @@ int cmesh_dump_obj_file(const struct cmesh *cm, FILE *fp, int voffs)
 		int numtri = cm->nverts / 3;
 		unsigned int idx = 1 + voffs;
 		for(i=0; i<numtri; i++) {
+			if(sub && sub->vstart == idx - 1) {
+				fprintf(fp, "o %s\n", sub->name);
+				sub = sub->next;
+			}
+
 			fputc('f', fp);
 			for(j=0; j<3; j++) {
 				fprintf(fp, fmtstr[aflags], idx, idx, idx);

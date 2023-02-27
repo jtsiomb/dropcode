@@ -19,6 +19,10 @@ enum {
 
 struct cmesh;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* global state */
 void cmesh_set_attrib_sdrloc(int attr, int loc);
 int cmesh_get_attrib_sdrloc(int attr);
@@ -134,6 +138,9 @@ int cmesh_dump_file(const struct cmesh *cm, FILE *fp);
 int cmesh_dump_obj(const struct cmesh *cm, const char *fname);
 int cmesh_dump_obj_file(const struct cmesh *cm, FILE *fp, int voffs);
 
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif	/* CMESH_H_ */

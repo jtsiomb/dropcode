@@ -31,6 +31,16 @@ void *dynarr_alloc(int elem, int szelem)
 	return (char*)desc + sizeof *desc;
 }
 
+void *dynarr_alloc_nf(int elem, int szelem)
+{
+	void *arr = dynarr_alloc(elem, szelem);
+	if(!arr) {
+		fprintf(stderr, "failed to allocate dynamic array (%d * %d bytes)\n", elem, szelem);
+		abort();
+	}
+	return arr;
+}
+
 void dynarr_free(void *da)
 {
 	if(da) {

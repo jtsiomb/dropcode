@@ -5,16 +5,22 @@
 #ifndef DYNARR_H_
 #define DYNARR_H_
 
-/* usage example:
+#include <stdio.h>
+#include <stdlib.h>
+
+/* The _nf suffixed variants (no-fail) check the result of the operation,
+ * and call abort on failure.
+ *
+ * usage example:
  * -------------
  * int *arr = dynarr_alloc(0, sizeof *arr);
  *
  * int x = 10;
- * arr = dynarr_push(arr, &x);
+ * dynarr_push_nf(arr, &x);
  * x = 5;
- * arr = dynarr_push(arr, &x);
+ * dynarr_push_nf(arr, &x);
  * x = 42;
- * arr = dynarr_push(arr, &x);
+ * dynarr_push_nf(arr, &x);
  *
  * for(i=0; i<dynarr_size(arr); i++) {
  *     printf("%d\n", arr[i]);
@@ -23,6 +29,7 @@
  */
 
 void *dynarr_alloc(int elem, int szelem);
+void *dynarr_alloc_nf(int elem, int szelem);
 void dynarr_free(void *da);
 void *dynarr_resize(void *da, int elem);
 
@@ -48,32 +55,52 @@ void *dynarr_pop(void *da);
 void *dynarr_finalize(void *da);
 
 /* helper macros */
-#define DYNARR_RESIZE(da, n) \
-	do { (da) = dynarr_resize((da), (n)); } while(0)
-#define DYNARR_CLEAR(da) \
-	do { (da) = dynarr_clear(da); } while(0)
-#define DYNARR_PUSH(da, item) \
-	do { (da) = dynarr_push((da), (item)); } while(0)
-#define DYNARR_POP(da) \
-	do { (da) = dynarr_pop(da); } while(0)
+#define dynarr_resize_nf(da, n) \
+	do { \
+		if(!((da) = dynarr_resize((da), (n)))) { \
+			fprintf(stderr, "failed to resize dynamic array\n"); \
+			abort(); \
+		} \
+	} while(0)
+#define dynarr_clear_nf(da) \
+	do { \
+		if(!((da) = dynarr_clear(da))) { \
+			fprintf(stderr, "failed to clear dynamic array\n"); \
+			abort(); \
+		} \
+	} while(0)
+#define dynarr_push_nf(da, item) \
+	do { \
+		if(!((da) = dynarr_push((da), (item)))) { \
+			fprintf(stderr, "failed to append to dynamic array\n"); \
+			abort(); \
+		} \
+	} while(0)
+#define dynarr_pop_nf(da) \
+	do { \
+		if(!((da) = dynarr_pop(da))) { \
+			fprintf(stderr, "failed to remove from dynamic array\n"); \
+			abort(); \
+		} \
+	} while(0)
 
 /* utility macros to push characters to a string. assumes and maintains
  * the invariant that the last element is always a zero
  */
-#define DYNARR_STRPUSH(da, c) \
+#define dynarr_strpush_nf(da, c) \
 	do { \
 		char cnull = 0, ch = (char)(c); \
-		(da) = dynarr_pop(da); \
-		(da) = dynarr_push((da), &ch); \
-		(da) = dynarr_push((da), &cnull); \
+		dynarr_pop_nf(da); \
+		dynarr_push_nf((da), &ch); \
+		dynarr_push_nf((da), &cnull); \
 	} while(0)
 
-#define DYNARR_STRPOP(da) \
+#define dynarr_strpop_nf(da) \
 	do { \
 		char cnull = 0; \
-		(da) = dynarr_pop(da); \
-		(da) = dynarr_pop(da); \
-		(da) = dynarr_push((da), &cnull); \
+		dynarr_pop_nf(da); \
+		dynarr_pop_nf(da); \
+		dynarr_push_nf((da), &cnull); \
 	} while(0)
 
 

@@ -129,22 +129,25 @@ void tpool_destroy(struct thread_pool *tpool)
 	if(!tpool) return;
 
 	tpool_clear(tpool);
-	tpool->should_quit = 1;
 
+	pthread_mutex_lock(&tpool->workq_mutex);
+	tpool->should_quit = 1;
 	pthread_cond_broadcast(&tpool->workq_condvar);
+	pthread_mutex_unlock(&tpool->workq_mutex);
 
 	if(tpool->threads) {
 		for(i=0; i<tpool->num_threads; i++) {
 			pthread_join(tpool->threads[i], 0);
 		}
-		putchar('\n');
 		free(tpool->threads);
 	}
 	free(tpool->tdata);
 
 	/* also wake up anyone waiting on the wait* calls */
+	pthread_mutex_lock(&tpool->workq_mutex);
 	tpool->nactive = 0;
 	pthread_cond_broadcast(&tpool->done_condvar);
+	pthread_mutex_unlock(&tpool->workq_mutex);
 	send_done_event(tpool);
 
 	pthread_mutex_destroy(&tpool->workq_mutex);
